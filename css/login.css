@@ -1,0 +1,89 @@
+.toggle{
+  font-size:12px;
+  cursor:pointer;
+  color:blue;
+}
+
+.btnAdmin{
+  top:40px;
+  right:25%;
+  width:100px;
+  background:#666666;
+  cursor:pointer;
+  box-shadow:0 4px 10px rgba(0,0,0,0.2);
+}
+
+.btnAdmin:hover{
+  background:#777777;
+}
+
+.lupaPassword{
+  display:inline-block;
+  margin-top:10px;
+  text-decoration:none;
+}
+
+#footer{
+  text-align:center;
+  margin-top:40px;
+  color:#777;
+  font-size:14px;
+}
+
+/*==================== LUPA PASS ======================= */
+.modal{
+  display:none;
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.5);
+  z-index:9999;
+}
+
+.modal-content{
+  background:#fff;
+  width:90%;
+  max-width:350px;
+  margin:100px auto;
+  padding:20px;
+  border-radius:12px;
+  box-shadow:0 4px 12px rgba(0,0,0,.2);
+}
+
+.modal-content input{
+  width:100%;
+  padding:10px;
+  margin-bottom:10px;
+  box-sizing:border-box;
+}
+
+.modal-content button{
+  width:100%;
+  padding:10px;
+}
+
+.close{
+  float:right;
+  cursor:pointer;
+  font-size:22px;
+}
+
+/*=================== logo login ================== */
+
+.header-login{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:12px;
+    margin-bottom:20px;
+}
+
+.logo-login{
+    width:60px;
+    height:60px;
+    object-fit:contain;
+}
+
+.nama-app{
+    margin:0;
+    font-size:20px;
+}

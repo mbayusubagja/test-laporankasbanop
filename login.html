@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#000000">
+<title>Login</title>
+
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/login.css">
+
+</head>
+
+<body>
+
+<div class="container">
+
+    <div class="card">
+
+        <div class="header-login">
+
+            <img
+                src="./logo.png"
+                alt="Logo"
+                class="logo-login"
+            >
+
+            <div>
+                <h2 class="nama-app">
+                    Laporan Keuangan Operasional
+                </h2>
+            </div>
+
+        </div>
+
+        <h3>Login / Register</h3>
+
+        <input id="noHp" placeholder="No HP (62xxx)">
+        <input id="password" type="password" placeholder="Password">
+
+        <div class="toggle" onclick="togglePass()">👁 Lihat Password</div>
+
+        <p id="status"></p>
+
+        <button id="loginBtn" onclick="login()">Login</button>
+        <button id="registerBtn" onclick="register()">Register</button>
+
+        <p>
+        <a href="#"
+            onclick="bukaModalLupaPassword()"
+            class="lupaPassword">
+            Lupa Password?
+        </a>
+        </p>
+
+    </div>
+
+    <div id="modalLupaPassword" class="modal">
+
+    <div class="modal-content">
+
+        <span
+        class="close"
+        onclick="tutupModalLupaPassword()"
+        >&times;</span>
+
+        <h3>Lupa Password</h3>
+
+        <!-- Step 1 -->
+        <div id="stepEmail">
+
+        <input
+            type="email"
+            id="gmailReset"
+            placeholder="Masukkan Gmail"
+        >
+
+        <button
+            onclick="kirimOtpReset()"
+        >
+            Kirim OTP
+        </button>
+
+        </div>
+
+        <!-- Step 2 -->
+        <div
+        id="stepOtp"
+        style="display:none;"
+        >
+
+        <input
+            type="text"
+            id="otpReset"
+            placeholder="Masukkan OTP"
+        >
+
+        <button
+            onclick="verifikasiOtpReset()"
+        >
+            Verifikasi OTP
+        </button>
+
+        </div>
+
+        <!-- Step 3 -->
+        <div
+        id="stepPassword"
+        style="display:none;"
+        >
+
+        <input
+            type="password"
+            id="passwordBaru"
+            placeholder="Password Baru"
+        >
+        <div
+        class="toggle"
+        onclick="togglePasswordBaru()"
+        >
+        👁 Lihat Password
+        </div>
+
+        <button
+            onclick="simpanPasswordBaru()"
+        >
+            Simpan Password
+        </button>
+
+        </div>
+
+    </div>
+
+    </div>
+
+</div>
+
+<footer id="footer">
+© 2026 Laporan Keuangan Operasional
+</footer>
+
+<script src="js/config.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/login.js"></script>
+
+</body>
+</html>

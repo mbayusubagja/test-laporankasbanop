@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#000000">
+
+<title>Pengeluaran</title>
+
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/button.css">
+
+</head>
+
+<body>
+
+<div class="container">
+
+  <div class="header">
+    <h2>Tambah Pengeluaran</h2>
+  </div>
+
+  <div class="card">
+
+    <label for="tanggal">Tanggal</label>
+    <input type="datetime-local" id="tanggal">
+
+    <label for="kategori">Kategori</label>
+    <select id="kategori">
+      <option value="">Pilih Kategori</option>
+      <option value="Transportasi">Transportasi</option>
+      <option value="Project">Project</option>
+      <option value="Konsumsi">Konsumsi</option>
+      <option value="Lainnya">Lainnya</option>
+    </select>
+
+    <label for="nominal">Nominal</label>
+
+    <input
+      type="text"
+      id="nominal"
+      inputmode="numeric"
+      placeholder="Rp 0"
+    >
+
+    <label for="catatan">Keterangan</label>
+
+    <textarea
+      id="catatan"
+      placeholder="Catatan"
+    ></textarea>
+
+    <label for="file">Upload Bukti</label>
+
+    <input type="file" id="file" accept="image/*,.pdf">
+    <img id="preview">
+
+    <p id="status"></p>
+
+    <button
+      id="btnSimpan"
+      class="primaryBtn"
+      onclick="simpanPengeluaran()"
+    >
+      Simpan
+    </button>
+
+    <button
+      class="btnBack"
+    >
+      Kembali
+    </button>
+
+  </div>
+
+</div>
+
+<footer id="footer">
+© 2026 Laporan Keuangan Operasional
+</footer>
+
+<script src="js/config.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/pengeluaran.js"></script>
+
+</body>
+</html>
