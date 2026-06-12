@@ -163,7 +163,7 @@ height:44px;
 @media (max-width:376px){
 
   .card {
-    width: 285px;
+    width: 85%;
   }
 
 }
@@ -183,7 +183,7 @@ height:44px;
   }
 
   .card {
-    width: 250px;
+    width: 85%;
   }
 
 }
