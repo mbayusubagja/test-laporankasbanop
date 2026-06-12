@@ -1,7 +1,7 @@
 .toggle{
   font-size:12px;
   cursor:pointer;
-  color:blue;
+  color:#666666;
 }
 
 .btnAdmin{
@@ -160,12 +160,31 @@ height:44px;
   text-align: center;
 }
 
-@media (max-width:375px){
+@media (max-width:376px){
+
+  .card {
+    width: 285px;
+  }
+
+}
+
+@media (max-width:400px){
+
+  .modal-content {
+    width: 80%;
+  }
+
+}
+
+@media (max-width:350px){
+
+  .modal-content {
+    width: 80%;
+  }
 
   .card {
     width: 250px;
   }
 
-  
-
 }
+
