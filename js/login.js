@@ -22,6 +22,17 @@ function togglePass(){
     : "password";
 }
 
+function togglePassBaru(){
+
+  const p =
+    document.getElementById("passwordBaru");
+
+  p.type =
+    p.type === "password"
+    ? "text"
+    : "password";
+}
+
 // ================================ validasi ==================================
 
 function validasi() {
