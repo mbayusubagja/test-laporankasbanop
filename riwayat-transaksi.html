@@ -26,102 +26,216 @@
 
 <div class="container">
 
-<div class="header">
-<h2>Riwayat Transaksi</h2>
-</div>
+  <div class="header">
+    <h2>Riwayat Transaksi</h2>
+  </div>
 
-<div class="card">
-  <h3>Transaksi perbulan</h3>
-  <div id="listBulan">Loading...</div>
-</div>
 
-<div
-  class="card"
-  id="cardListTanggal"
-  style="display:none;"
->
+  <!-- ================================================= -->
+  <!-- DOWNLOAD LAPORAN PDF -->
+  <!-- ================================================= -->
+
+  <div class="card" id="cardLaporan">
+
+    <h3>📄 Unduh Laporan</h3>
+
+    <div class="filterWaktu">
+
+      <div>
+        <label for="waktuAwal">
+          Dari
+        </label>
+
+        <input
+          type="datetime-local"
+          id="waktuAwal"
+        >
+      </div>
+
+
+      <div>
+        <label for="waktuAkhir">
+          Sampai
+        </label>
+
+        <input
+          type="datetime-local"
+          id="waktuAkhir"
+        >
+      </div>
+
+    </div>
+
+
+    <button
+      type="button"
+      class="btnPdf"
+      id="btnDownloadPDF"
+      onclick="handleDownloadPDF(this)"
+    >
+      📄 Download PDF
+    </button>
+
+  </div>
+
+
+  <!-- ================================================= -->
+  <!-- TRANSAKSI PER BULAN -->
+  <!-- ================================================= -->
+
+  <div class="card">
+
+    <h3>Transaksi perbulan</h3>
+
+    <div id="listBulan">
+      Loading...
+    </div>
+
+  </div>
+
+
+  <!-- ================================================= -->
+  <!-- DETAIL BULAN -->
+  <!-- ================================================= -->
 
   <div
-    class="menuLaporan"
-    id="menuLaporan"
+    class="card"
+    id="cardListTanggal"
     style="display:none;"
   >
 
-    <div
-      id="menuRincian"
-      class="menuAktif"
-      onclick="showTab('rincian')"
-    >
-      Rincian
-    </div>
+    <!-- TAB RINCIAN / KATEGORI -->
 
     <div
-      id="menuKategori"
-      onclick="showTab('kategori')"
+      class="menuLaporan"
+      id="menuLaporan"
     >
-      Kategori
+
+      <div
+        id="menuRincian"
+        class="menuAktif"
+        onclick="showTab('rincian')"
+      >
+        Rincian
+      </div>
+
+      <div
+        id="menuKategori"
+        onclick="showTab('kategori')"
+      >
+        Kategori
+      </div>
+
+    </div>
+
+
+    <!-- TAB RINCIAN -->
+
+    <div id="tabRincian">
+
+      <div id="listTanggal"></div>
+
+    </div>
+
+
+    <!-- TAB KATEGORI -->
+
+    <div
+      id="tabKategori"
+      style="display:none;"
+    >
+
+      <div id="listKategori"></div>
+
     </div>
 
   </div>
 
-  <div id="tabRincian">
 
-    <div id="listTanggal"></div>
-
-  </div>
+  <!-- ================================================= -->
+  <!-- MODAL -->
+  <!-- ================================================= -->
 
   <div
-    id="tabKategori"
+    id="modalOverlay"
+    class="modalOverlay"
     style="display:none;"
   >
 
-    <div id="listKategori"></div>
+    <div class="modalBox">
+
+      <div class="modalHeader">
+
+        <h3>Detail Transaksi</h3>
+
+        <button
+          onclick="closeModal()"
+        >
+          ✕
+        </button>
+
+      </div>
+
+      <div
+        id="modalContent"
+        class="modalContent"
+      >
+        <!-- isi dinamis -->
+      </div>
+
+    </div>
 
   </div>
 
-</div>
 
-<div id="modalOverlay" class="modalOverlay" style="display:none;">
-  <div class="modalBox">
+  <!-- ================================================= -->
+  <!-- IMAGE PREVIEW -->
+  <!-- ================================================= -->
 
-    <div class="modalHeader">
-      <h3>Detail Transaksi</h3>
-      <button onclick="closeModal()">✕</button>
-    </div>
+  <div
+    id="imagePreviewOverlay"
+    style="
+      display:none;
+      position:fixed;
+      top:0;
+      left:0;
+      width:100%;
+      height:100%;
+      background:rgba(0,0,0,0.9);
+      justify-content:center;
+      align-items:center;
+      z-index:99999;
+    "
+  >
 
-    <div id="modalContent" class="modalContent">
-      <!-- isi dinamis -->
-    </div>
+    <button
+      id="closePreviewBtn"
+      class="closePreviewBtn"
+    >
+      ✕
+    </button>
+
+    <img
+      id="imagePreviewFull"
+      style="
+        max-width:95%;
+        max-height:95%;
+        border-radius:10px;
+      "
+    >
 
   </div>
-</div>
 
-<!-- ================= IMAGE PREVIEW ================= -->
-<div id="imagePreviewOverlay" style="
-  display:none;
-  position:fixed;
-  top:0;
-  left:0;
-  width:100%;
-  height:100%;
-  background:rgba(0,0,0,0.9);
-  justify-content:center;
-  align-items:center;
-  z-index:99999;
-">
 
-  <button id="closePreviewBtn" class="closePreviewBtn">
-    ✕
-  </button>
+  <!-- KEMBALI -->
 
-  <img id="imagePreviewFull" style="
-    max-width:95%;
-    max-height:95%;
-    border-radius:10px;
-  ">
-</div>
+  <div class="card">
 
-<div class="card"><button class="btnBack">Kembali</button></div>
+    <button class="btnBack">
+      Kembali
+    </button>
+
+  </div>
 
 </div>
 
