@@ -18,6 +18,50 @@ if(!user){
   location.href = "login.html";
 }
 
+function updateProgressButton(btn, persen, teks) {
+
+  if (!btn) return;
+
+  const progress =
+    Math.min(100, Math.max(0, persen));
+
+  btn.innerHTML = `
+    <div style="
+      position:relative;
+      width:100%;
+      height:22px;
+      overflow:hidden;
+      border-radius:6px;
+      background:rgba(255,255,255,0.25);
+    ">
+
+      <div style="
+        position:absolute;
+        left:0;
+        top:0;
+        height:100%;
+        width:${progress}%;
+        background:rgba(255,255,255,0.35);
+        transition:width .2s ease;
+      "></div>
+
+      <div style="
+        position:absolute;
+        inset:0;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        font-size:12px;
+        font-weight:600;
+        white-space:nowrap;
+      ">
+        ${teks} ${progress}%
+      </div>
+
+    </div>
+  `;
+}
+
 // ================= FORMAT =================
 
 function formatRupiah(angka){
@@ -44,6 +88,33 @@ function formatJam(trx){
         minute: "2-digit"
       }
     );
+}
+
+// ================= PARSE DATETIME LOCAL =================
+
+function parseDatetimeLocal(value) {
+
+  if (!value) return null;
+
+  const [tanggal, waktu] =
+    value.split("T");
+
+  const [tahun, bulan, hari] =
+    tanggal
+      .split("-")
+      .map(Number);
+
+  const [jam, menit] =
+    waktu
+      .split(":")
+      .map(Number);
+
+
+  return new Date(
+    `${tahun}-${String(bulan).padStart(2, "0")}-${String(hari).padStart(2, "0")}` +
+    `T${String(jam).padStart(2, "0")}:${String(menit).padStart(2, "0")}:00+07:00`
+  );
+
 }
 
 // ================= format tanggal indonesia ==================
@@ -105,97 +176,199 @@ function parseTanggal(trx){
 return new Date(Number(trx.timestamp || 0));
 }
 
+// ================= DEFAULT PERIODE LAPORAN =================
+
+function formatDatetimeLocal(date) {
+
+  const year =
+    date.getFullYear();
+
+  const month =
+    String(date.getMonth() + 1)
+      .padStart(2, "0");
+
+  const day =
+    String(date.getDate())
+      .padStart(2, "0");
+
+  const hour =
+    String(date.getHours())
+      .padStart(2, "0");
+
+  const minute =
+    String(date.getMinutes())
+      .padStart(2, "0");
+
+  return (
+    `${year}-${month}-${day}` +
+    `T${hour}:${minute}`
+  );
+}
+
+
+function setDefaultPeriodeLaporan() {
+
+  const now =
+    new Date();
+
+  const awalBulan =
+    new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      1,
+      0,
+      0,
+      0
+    );
+
+
+  const inputAwal =
+    document.getElementById(
+      "waktuAwal"
+    );
+
+  const inputAkhir =
+    document.getElementById(
+      "waktuAkhir"
+    );
+
+
+  if (inputAwal) {
+
+    inputAwal.value =
+      formatDatetimeLocal(
+        awalBulan
+      );
+
+  }
+
+
+  if (inputAkhir) {
+
+    inputAkhir.value =
+      formatDatetimeLocal(
+        now
+      );
+
+  }
+
+}
+
 // ================= LOAD =================
 
-async function loadRiwayat(){
+// ================= LOAD RIWAYAT =================
 
+async function loadRiwayat() {
 
-  try{
+  try {
 
     document.getElementById("listTanggal").innerHTML = "";
     document.getElementById("listKategori").innerHTML = "";
     document.getElementById("cardListTanggal").style.display = "none";
-    document.getElementById("menuLaporan").style.display = "none";
+
+    // =====================================================
+    // DEFAULT PERIODE
+    // Awal bulan berjalan → waktu sekarang
+    // =====================================================
+
+    setDefaultPeriodeLaporan();
+
+
+    // =====================================================
+    // AMBIL DATA
+    // =====================================================
 
     const res =
       await fetch(
-
         API +
-
         "?mode=riwayat&userId=" +
-
         user.userId
       );
 
     const hasil =
       await res.json();
 
-    // ================= LIST BULAN =================
+
+    // =====================================================
+    // LIST BULAN
+    // =====================================================
 
     const listBulan =
       document.getElementById("listBulan");
 
     listBulan.innerHTML = "";
 
-    let activeBulan = null;
-    let activeCard = null;
+    activeBulan = null;
+    activeCard = null;
+
 
     const bulanKeys =
       Object.keys(hasil.bulan || {})
-      .sort((a, b) => b.localeCompare(a));
-
+        .sort((a, b) => b.localeCompare(a));
 
 
     if (bulanKeys.length === 0) {
 
       listBulan.innerHTML = `
-        
-          <p>Belum ada transaksi</p>
-        
+        <p>Belum ada transaksi</p>
       `;
 
       return;
     }
 
+
+    // =====================================================
+    // RENDER BULAN
+    // =====================================================
+
     bulanKeys.forEach(key => {
 
-        const card =
-          document.createElement("div");
+      const card =
+        document.createElement("div");
 
-        card.className =
-          "card";
+      card.className = "card";
+      card.style.cursor = "pointer";
+      card.style.marginBottom = "10px";
 
-        card.style.cursor =
-          "pointer";
+      card.innerHTML = `
+        <strong>${namaBulan(key)}</strong>
+      `;
 
-        card.style.marginBottom =
-          "10px";
 
-        card.innerHTML = `
-          <strong>${namaBulan(key)}</strong>
-        `;
-
-    
+      // ===================================================
+      // KLIK BULAN
+      // HANYA UNTUK MELIHAT RINCIAN BULAN
+      // TIDAK MEMPENGARUHI LAPORAN PDF
+      // ===================================================
 
       card.onclick = () => {
 
         limitTanggal = 5;
         limitTransaksi = 5;
 
-        const cardListTanggal =
-          document.getElementById("cardListTanggal");
 
-        // hapus warna bulan sebelumnya
-        if(activeCard && activeCard !== card){
+        const cardListTanggal =
+          document.getElementById(
+            "cardListTanggal"
+          );
+
+
+        // hapus bulan sebelumnya
+        if (
+          activeCard &&
+          activeCard !== card
+        ) {
 
           activeCard.classList.remove(
             "cardBulanAktif"
           );
+
         }
+
 
         // ================= TOGGLE =================
 
-        if(activeBulan === key){
+        if (activeBulan === key) {
 
           activeBulan = null;
 
@@ -205,17 +378,19 @@ async function loadRiwayat(){
 
           activeCard = null;
 
-          document.getElementById("listTanggal")
-            .innerHTML = "";
-
-          cardListTanggal.style.display = "none";
 
           document.getElementById(
-            "menuLaporan"
-          ).style.display = "none";
+            "listTanggal"
+          ).innerHTML = "";
+
+
+          cardListTanggal.style.display =
+            "none";
+
 
           return;
         }
+
 
         activeBulan = key;
 
@@ -225,38 +400,45 @@ async function loadRiwayat(){
 
         activeCard = card;
 
-        cardListTanggal.style.display = "block";
+        cardListTanggal.style.display =
+          "block";
 
-        document.getElementById(
-          "menuLaporan"
-        ).style.display = "flex";
 
-        // ================= HITUNG SUMMARY =================
+        // =================================================
+        // SUMMARY BULAN
+        // =================================================
 
         let totalMasuk = 0;
         let totalKeluar = 0;
 
+
         hasil.bulan[key].forEach(trx => {
 
-          if(trx.jenis === "masuk"){
+          if (trx.jenis === "masuk") {
 
             totalMasuk +=
               Number(trx.nominal);
+
           }
 
-          if(trx.jenis === "keluar"){
+          if (trx.jenis === "keluar") {
 
             totalKeluar +=
               Number(trx.nominal);
+
           }
 
         });
 
-        // ================= RENDER =================
 
-        document.getElementById("listTanggal")
-          .innerHTML = `
-          
+        // =================================================
+        // RENDER SUMMARY
+        // =================================================
+
+        document.getElementById(
+          "listTanggal"
+        ).innerHTML = `
+
           <div class="summaryBulanan">
 
             <div class="summaryCard masuk">
@@ -268,6 +450,7 @@ async function loadRiwayat(){
               </strong>
 
             </div>
+
 
             <div class="summaryCard keluar">
 
@@ -281,44 +464,13 @@ async function loadRiwayat(){
 
           </div>
 
-          <div class="filter-pdf">
-
-            <h3>Unduh Laporan</h3>
-
-            <label>Dari Tanggal</label>
-            <input type="date" id="tglAwal">
-
-            <label>Sampai Tanggal</label>
-            <input type="date" id="tglAkhir">
-
-            <div class="btnDownloadPdf">
-              <button
-                class="btnPdf"
-                onclick="handleDownloadPDF(this, '${key}')"
-              >
-                📄 Download PDF
-              </button>
-            </div>
-
-          </div>
-
         `;
 
-        // isi otomatis tanggal
-        const [tahun, bulan] = key.split("-");
-
-        const lastDay =
-          new Date(tahun, bulan, 0).getDate();
-
-        document.getElementById("tglAwal").value =
-          `${tahun}-${bulan}-01`;
-
-        document.getElementById("tglAkhir").value =
-          `${tahun}-${bulan}-${String(lastDay).padStart(2, "0")}`;
 
         renderTanggal(
           hasil.bulan[key]
         );
+
 
         renderKategori(
           hasil.bulan[key]
@@ -326,18 +478,22 @@ async function loadRiwayat(){
 
       };
 
+
       listBulan.appendChild(card);
 
     });
 
-  }catch(err){
+
+  } catch (err) {
 
     console.error(err);
 
     showToast(
       "Gagal load laporan"
     );
+
   }
+
 }
 
 // ================ grup by tanggal ===================
@@ -912,47 +1068,104 @@ function updateButtonLoadMoreTanggal(){
 
 // ===================== proses download pdf ========================
 
-async function handleDownloadPDF(btn, key) {
+async function handleDownloadPDF(btn) {
 
   btn.disabled = true;
-  const oldText = btn.innerHTML;
-  btn.innerHTML = "⏳ Sedang membuat PDF...";
+
+  const oldText =
+    btn.innerHTML;
+
+  updateProgressButton(
+    btn,
+    0,
+    "Menyiapkan..."
+  );
+
 
   try {
 
-    const tglAwal =
-      document.getElementById("tglAwal").value;
+    const waktuAwal =
+      document.getElementById(
+        "waktuAwal"
+      ).value;
 
-    const tglAkhir =
-      document.getElementById("tglAkhir").value;
 
-    // VALIDASI
-    if (!tglAwal || !tglAkhir) {
-      alert("Silakan pilih tanggal terlebih dahulu");
+    const waktuAkhir =
+      document.getElementById(
+        "waktuAkhir"
+      ).value;
+
+
+    if (
+      !waktuAwal ||
+      !waktuAkhir
+    ) {
+
+      alert(
+        "Silakan pilih waktu awal dan waktu akhir"
+      );
+
       return;
     }
 
-    if (new Date(tglAwal) > new Date(tglAkhir)) {
-      alert("Tanggal awal tidak boleh lebih besar dari tanggal akhir");
+
+    const start =
+      parseDatetimeLocal(
+        waktuAwal
+      );
+
+    const end =
+      parseDatetimeLocal(
+        waktuAkhir
+      );
+
+
+    if (!start || !end) {
+
+      alert(
+        "Format waktu tidak valid"
+      );
+
       return;
     }
+
+
+    if (start > end) {
+
+      alert(
+        "Waktu awal tidak boleh lebih besar dari waktu akhir"
+      );
+
+      return;
+    }
+
 
     await downloadLaporanPDF(
-      key,
-      tglAwal,
-      tglAkhir,
+      waktuAwal,
+      waktuAkhir,
       btn
     );
+
 
   } catch (err) {
 
     console.error(err);
-    alert("Gagal download PDF");
+
+    alert(
+      err.message ||
+      "Gagal download PDF"
+    );
+
 
   } finally {
 
     btn.disabled = false;
-    btn.innerHTML = oldText;
+
+    setTimeout(() => {
+
+      btn.innerHTML = oldText;
+
+    }, 1000);
 
   }
 
