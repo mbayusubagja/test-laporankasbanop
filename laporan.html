@@ -8,6 +8,7 @@
 
 <link rel="stylesheet" href="css/style.css">
 <link rel="stylesheet" href="css/button.css">
+<link rel="stylesheet" href="css/navigasi.css">
 
 
 </head>
@@ -40,16 +41,32 @@
     </div>
 
   </div>
-
-  <div class="card">
-    <button class="btnBack">Kembali</button>
-  </div>
   
 </div>
 
-<footer id="footer">
-© 2026 Laporan Keuangan Operasional
-</footer>
+<div class="bottomNav">
+
+  <button data-menu="dashboard" onclick="lihatDashboard()">
+    <span>🏠</span>
+    <small>Home</small>
+  </button>
+
+  <button data-menu="laporan" onclick="lihatRiwayatTransaksi()">
+    <span>📊</span>
+    <small>Laporan</small>
+  </button>
+
+  <button data-menu="user-profil" onclick="lihatProfil()">
+    <span>👤</span>
+    <small>Profil</small>
+  </button>
+
+  <button data-menu="dompet" onclick="logout()">
+    <span>↪️</span>
+    <small>Logout</small>
+  </button>
+
+</div>
 
 <script src="js/config.js"></script>
 <script src="js/auth.js"></script>
@@ -58,6 +75,7 @@
 <script src="js/download-laporan.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@latest/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@latest/dist/jspdf.plugin.autotable.js"></script>
+<script src="js/nav.js"></script>
 
 </body>
 </html>

@@ -291,6 +291,14 @@ async function simpanPengeluaran(){
           "editTransaksi"
         );
 
+        localStorage.removeItem(
+          "dashboard_cache_" + user.userId
+        );
+
+        localStorage.removeItem(
+          "riwayat_cache_" + user.userId
+        );
+
         window.location.href =
           "dashboard.html";
 

@@ -300,6 +300,14 @@ async function simpanPemasukan(){
           "editTransaksi"
         );
 
+        localStorage.removeItem(
+          "dashboard_cache_" + user.userId
+        );
+
+        localStorage.removeItem(
+          "riwayat_cache_" + user.userId
+        );
+
         window.location.href =
           "dashboard.html";
 

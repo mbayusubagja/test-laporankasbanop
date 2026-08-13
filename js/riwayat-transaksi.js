@@ -18,6 +18,126 @@ if(!user){
   location.href = "login.html";
 }
 
+// ================= RIWAYAT CACHE =================
+
+const RIWAYAT_CACHE_KEY =
+  "riwayat_cache_" + user.userId;
+
+const RIWAYAT_CACHE_TIME =
+  30 * 1000; // 30 detik
+
+let riwayatLoading = false;
+
+
+// ================= CACHE =================
+
+function getRiwayatCache(){
+
+  try{
+
+    const cache =
+      localStorage.getItem(
+        RIWAYAT_CACHE_KEY
+      );
+
+    if(!cache){
+      return null;
+    }
+
+    return JSON.parse(cache);
+
+  }catch(err){
+
+    console.error(
+      "Cache riwayat rusak:",
+      err
+    );
+
+    localStorage.removeItem(
+      RIWAYAT_CACHE_KEY
+    );
+
+    return null;
+  }
+}
+
+
+function saveRiwayatCache(data){
+
+  try{
+
+    localStorage.setItem(
+      RIWAYAT_CACHE_KEY,
+      JSON.stringify({
+        time: Date.now(),
+        data: data
+      })
+    );
+
+  }catch(err){
+
+    console.error(
+      "Gagal menyimpan cache riwayat:",
+      err
+    );
+
+  }
+
+}
+
+
+function clearRiwayatCache(){
+
+  localStorage.removeItem(
+    RIWAYAT_CACHE_KEY
+  );
+
+}
+
+function showRiwayatSkeleton(){
+
+  const listBulan =
+    document.getElementById("listBulan");
+
+  listBulan.innerHTML = `
+
+    <div class="skeletonBulan"></div>
+    <div class="skeletonBulan"></div>
+    <div class="skeletonBulan"></div>
+    <div class="skeletonBulan"></div>
+    <div class="skeletonBulan"></div>
+
+  `;
+
+  // ================= SUMMARY =================
+
+  const totalMasuk =
+    document.getElementById("totalMasuk");
+
+  const totalKeluar =
+    document.getElementById("totalKeluar");
+
+  const sisaSaldo =
+    document.getElementById("sisaSaldo");
+
+
+  if(totalMasuk){
+    totalMasuk.innerHTML =
+      `<span class="skeletonSummary"></span>`;
+  }
+
+  if(totalKeluar){
+    totalKeluar.innerHTML =
+      `<span class="skeletonSummary"></span>`;
+  }
+
+  if(sisaSaldo){
+    sisaSaldo.innerHTML =
+      `<span class="skeletonSummary"></span>`;
+  }
+
+}
+
 function updateProgressButton(btn, persen, teks) {
 
   if (!btn) return;
@@ -254,243 +374,436 @@ function setDefaultPeriodeLaporan() {
 
 }
 
-// ================= LOAD =================
+// ================= RENDER RIWAYAT =================
 
-// ================= LOAD RIWAYAT =================
+function renderRiwayat(hasil){
 
-async function loadRiwayat() {
+  // ================= SUMMARY =================
 
-  try {
+  renderSummaryRiwayat(hasil);
 
-    document.getElementById("listTanggal").innerHTML = "";
-    document.getElementById("listKategori").innerHTML = "";
-    document.getElementById("cardListTanggal").style.display = "none";
+  // =====================================================
+  // RESET TAMPILAN
+  // =====================================================
 
-    // =====================================================
-    // DEFAULT PERIODE
-    // Awal bulan berjalan → waktu sekarang
-    // =====================================================
+  document.getElementById(
+    "listTanggal"
+  ).innerHTML = "";
 
-    setDefaultPeriodeLaporan();
+  document.getElementById(
+    "listKategori"
+  ).innerHTML = "";
+
+  document.getElementById(
+    "cardListTanggal"
+  ).style.display = "none";
 
 
-    // =====================================================
-    // AMBIL DATA
-    // =====================================================
+  // =====================================================
+  // LIST BULAN
+  // =====================================================
 
-    const res =
-      await fetch(
-        API +
-        "?mode=riwayat&userId=" +
-        user.userId
+  const listBulan =
+    document.getElementById(
+      "listBulan"
+    );
+
+  listBulan.innerHTML = "";
+
+  activeBulan = null;
+  activeCard = null;
+
+
+  // =====================================================
+  // AMBIL BULAN
+  // =====================================================
+
+  const bulanKeys =
+    Object.keys(
+      hasil.bulan || {}
+    )
+    .sort(
+      (a,b) =>
+        b.localeCompare(a)
+    );
+
+
+  // =====================================================
+  // KOSONG
+  // =====================================================
+
+  if(bulanKeys.length === 0){
+
+    listBulan.innerHTML = `
+      <p>Belum ada transaksi</p>
+    `;
+
+    return;
+  }
+
+
+  // =====================================================
+  // RENDER BULAN
+  // =====================================================
+
+  bulanKeys.forEach(key => {
+
+    const card =
+      document.createElement("div");
+
+
+    card.className = "card";
+
+    card.style.cursor =
+      "pointer";
+
+    card.style.marginBottom =
+      "10px";
+
+
+    card.innerHTML = `
+      <strong>
+        ${namaBulan(key)}
+      </strong>
+    `;
+
+
+    // ===================================================
+    // KLIK BULAN
+    // ===================================================
+
+    card.onclick = () => {
+
+      limitTanggal = 5;
+
+
+      const cardListTanggal =
+        document.getElementById(
+          "cardListTanggal"
+        );
+
+
+      // ==============================
+      // HAPUS BULAN SEBELUMNYA
+      // ==============================
+
+      if(
+        activeCard &&
+        activeCard !== card
+      ){
+
+        activeCard.classList.remove(
+          "cardBulanAktif"
+        );
+
+      }
+
+
+      // ==============================
+      // TOGGLE
+      // ==============================
+
+      if(
+        activeBulan === key
+      ){
+
+        activeBulan = null;
+
+        card.classList.remove(
+          "cardBulanAktif"
+        );
+
+        activeCard = null;
+
+
+        document.getElementById(
+          "listTanggal"
+        ).innerHTML = "";
+
+
+        cardListTanggal.style.display =
+          "none";
+
+
+        return;
+      }
+
+
+      // ==============================
+      // AKTIFKAN BULAN
+      // ==============================
+
+      activeBulan = key;
+
+      card.classList.add(
+        "cardBulanAktif"
       );
 
-    const hasil =
-      await res.json();
+      activeCard = card;
 
 
-    // =====================================================
-    // LIST BULAN
-    // =====================================================
-
-    const listBulan =
-      document.getElementById("listBulan");
-
-    listBulan.innerHTML = "";
-
-    activeBulan = null;
-    activeCard = null;
+      cardListTanggal.style.display =
+        "block";
 
 
-    const bulanKeys =
-      Object.keys(hasil.bulan || {})
-        .sort((a, b) => b.localeCompare(a));
+      // ==============================
+      // SUMMARY BULAN
+      // ==============================
+
+      let totalMasuk = 0;
+      let totalKeluar = 0;
 
 
-    if (bulanKeys.length === 0) {
+      hasil.bulan[key].forEach(
+        trx => {
 
-      listBulan.innerHTML = `
-        <p>Belum ada transaksi</p>
+          if(
+            trx.jenis === "masuk"
+          ){
+
+            totalMasuk +=
+              Number(
+                trx.nominal
+              );
+
+          }
+
+
+          if(
+            trx.jenis === "keluar"
+          ){
+
+            totalKeluar +=
+              Number(
+                trx.nominal
+              );
+
+          }
+
+        }
+      );
+
+
+      // ==============================
+      // RENDER SUMMARY
+      // ==============================
+
+      document.getElementById(
+        "listTanggal"
+      ).innerHTML = `
+
+        <div class="summaryBulanan">
+
+          <div class="summaryCard masuk">
+
+            <div>Pemasukan</div>
+
+            <strong>
+              ${formatRupiah(
+                totalMasuk
+              )}
+            </strong>
+
+          </div>
+
+
+          <div class="summaryCard keluar">
+
+            <div>Pengeluaran</div>
+
+            <strong>
+              ${formatRupiah(
+                totalKeluar
+              )}
+            </strong>
+
+          </div>
+
+        </div>
+
       `;
+
+
+      // ==============================
+      // RENDER DETAIL
+      // ==============================
+
+      renderTanggal(
+        hasil.bulan[key]
+      );
+
+
+      renderKategori(
+        hasil.bulan[key]
+      );
+
+    };
+
+
+    listBulan.appendChild(
+      card
+    );
+
+  });
+
+}
+
+// ================= LOAD =================
+
+async function loadRiwayat(force = false){
+
+  if(riwayatLoading){
+    return;
+  }
+
+  const cache = getRiwayatCache();
+
+
+  // =====================================================
+  // CACHE MASIH FRESH
+  // LANGSUNG TAMPILKAN
+  // =====================================================
+
+  if(
+    cache &&
+    cache.data &&
+    !force
+  ){
+
+    const umur =
+      Date.now() - cache.time;
+
+
+    if(
+      umur < RIWAYAT_CACHE_TIME
+    ){
+
+      renderRiwayat(
+        cache.data
+      );
 
       return;
     }
 
 
-    // =====================================================
-    // RENDER BULAN
-    // =====================================================
-
-    bulanKeys.forEach(key => {
-
-      const card =
-        document.createElement("div");
-
-      card.className = "card";
-      card.style.cursor = "pointer";
-      card.style.marginBottom = "10px";
-
-      card.innerHTML = `
-        <strong>${namaBulan(key)}</strong>
-      `;
-
-
-      // ===================================================
-      // KLIK BULAN
-      // HANYA UNTUK MELIHAT RINCIAN BULAN
-      // TIDAK MEMPENGARUHI LAPORAN PDF
-      // ===================================================
-
-      card.onclick = () => {
-
-        limitTanggal = 5;
-        limitTransaksi = 5;
-
-
-        const cardListTanggal =
-          document.getElementById(
-            "cardListTanggal"
-          );
-
-
-        // hapus bulan sebelumnya
-        if (
-          activeCard &&
-          activeCard !== card
-        ) {
-
-          activeCard.classList.remove(
-            "cardBulanAktif"
-          );
-
-        }
-
-
-        // ================= TOGGLE =================
-
-        if (activeBulan === key) {
-
-          activeBulan = null;
-
-          card.classList.remove(
-            "cardBulanAktif"
-          );
-
-          activeCard = null;
-
-
-          document.getElementById(
-            "listTanggal"
-          ).innerHTML = "";
-
-
-          cardListTanggal.style.display =
-            "none";
-
-
-          return;
-        }
-
-
-        activeBulan = key;
-
-        card.classList.add(
-          "cardBulanAktif"
-        );
-
-        activeCard = card;
-
-        cardListTanggal.style.display =
-          "block";
-
-
-        // =================================================
-        // SUMMARY BULAN
-        // =================================================
-
-        let totalMasuk = 0;
-        let totalKeluar = 0;
-
-
-        hasil.bulan[key].forEach(trx => {
-
-          if (trx.jenis === "masuk") {
-
-            totalMasuk +=
-              Number(trx.nominal);
-
-          }
-
-          if (trx.jenis === "keluar") {
-
-            totalKeluar +=
-              Number(trx.nominal);
-
-          }
-
-        });
-
-
-        // =================================================
-        // RENDER SUMMARY
-        // =================================================
-
-        document.getElementById(
-          "listTanggal"
-        ).innerHTML = `
-
-          <div class="summaryBulanan">
-
-            <div class="summaryCard masuk">
-
-              <div>Pemasukan</div>
-
-              <strong>
-                ${formatRupiah(totalMasuk)}
-              </strong>
-
-            </div>
-
-
-            <div class="summaryCard keluar">
-
-              <div>Pengeluaran</div>
-
-              <strong>
-                ${formatRupiah(totalKeluar)}
-              </strong>
-
-            </div>
-
-          </div>
-
-        `;
-
-
-        renderTanggal(
-          hasil.bulan[key]
-        );
-
-
-        renderKategori(
-          hasil.bulan[key]
-        );
-
-      };
-
-
-      listBulan.appendChild(card);
-
-    });
-
-
-  } catch (err) {
-
-    console.error(err);
-
-    showToast(
-      "Gagal load laporan"
+    // ===================================================
+    // CACHE LAMA
+    // TAMPILKAN CACHE DAHULU
+    // ===================================================
+
+    renderRiwayat(
+      cache.data
     );
+
+  }else{
+
+    // ===================================================
+    // BELUM ADA CACHE / FORCE
+    // TAMPILKAN SKELETON
+    // ===================================================
+
+    showRiwayatSkeleton();
+
+  }
+
+
+  // =====================================================
+  // FETCH DATA TERBARU
+  // =====================================================
+
+  riwayatLoading = true;
+
+  try{
+
+    const res =
+      await fetch(
+        API +
+        "?mode=riwayat&userId=" +
+        encodeURIComponent(
+          user.userId
+        )
+      );
+
+
+    if(!res.ok){
+
+      throw new Error(
+        "HTTP " + res.status
+      );
+
+    }
+
+
+    const hasil =
+      await res.json();
+
+
+    if(!hasil.ok){
+
+      throw new Error(
+        hasil.message ||
+        "Gagal mengambil riwayat"
+      );
+
+    }
+
+
+    // ===================================================
+    // SIMPAN CACHE
+    // ===================================================
+
+    saveRiwayatCache(
+      hasil
+    );
+
+
+    // ===================================================
+    // RENDER DATA TERBARU
+    // ===================================================
+
+    renderRiwayat(
+      hasil
+    );
+
+
+  }catch(err){
+
+    console.error(
+      "Riwayat error:",
+      err
+    );
+
+
+    // ===================================================
+    // KALAU ADA CACHE
+    // ===================================================
+
+    if(
+      cache &&
+      cache.data
+    ){
+
+      renderRiwayat(
+        cache.data
+      );
+
+    }else{
+
+      document.getElementById(
+        "listBulan"
+      ).innerHTML =
+        `<p>Gagal memuat riwayat transaksi.</p>`;
+
+      showToast(
+        "Gagal load riwayat transaksi"
+      );
+
+    }
+
+
+  }finally{
+
+    riwayatLoading = false;
 
   }
 
@@ -1319,7 +1632,13 @@ async function hapusTransaksiUI(id){
         "Transaksi berhasil dihapus"
       );
 
-      await loadRiwayat();
+      localStorage.removeItem(
+          "dashboard_cache_" + user.userId
+      );
+
+      clearRiwayatCache();
+
+      await loadRiwayat(true);
 
     }else{
 
@@ -1342,6 +1661,76 @@ async function hapusTransaksiUI(id){
 
 }
 
-// ================= LOAD =================
+function hitungSummaryRiwayat(hasil){
 
-loadRiwayat();
+  let masuk = 0;
+  let keluar = 0;
+
+  Object.values(hasil.bulan || {}).forEach(data => {
+
+    data.forEach(trx => {
+
+      const nominal = Number(trx.nominal) || 0;
+
+      if(trx.jenis === "masuk"){
+        masuk += nominal;
+      }
+
+      if(trx.jenis === "keluar"){
+        keluar += nominal;
+      }
+
+    });
+
+  });
+
+  return {
+    masuk: masuk,
+    keluar: keluar,
+    saldo: masuk - keluar
+  };
+
+}
+
+function renderSummaryRiwayat(hasil){
+
+  const summary = hitungSummaryRiwayat(hasil);
+
+  const totalMasuk =
+    document.getElementById("totalMasuk");
+
+  const totalKeluar =
+    document.getElementById("totalKeluar");
+
+  const sisaSaldo =
+    document.getElementById("sisaSaldo");
+
+
+  if(totalMasuk){
+    totalMasuk.innerText =
+      formatRupiah(summary.masuk);
+  }
+
+  if(totalKeluar){
+    totalKeluar.innerText =
+      formatRupiah(summary.keluar);
+  }
+
+  if(sisaSaldo){
+    sisaSaldo.innerText =
+      formatRupiah(summary.saldo);
+  }
+
+}
+
+// ================= LOAD =================
+document.addEventListener(
+  "DOMContentLoaded",
+  () => {
+
+    setDefaultPeriodeLaporan();
+
+    loadRiwayat();
+
+  }
+);

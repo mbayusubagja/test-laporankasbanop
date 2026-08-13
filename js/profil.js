@@ -81,6 +81,9 @@ btnSimpan.addEventListener("click", async function () {
     showToast("Profil berhasil disimpan");
 
     setTimeout(() => {
+      localStorage.removeItem(
+        "profil_cache_" + user.userId
+      );
       location.replace("dashboard.html");
     }, 1000);
     
