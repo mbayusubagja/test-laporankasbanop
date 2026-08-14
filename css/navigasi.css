@@ -56,7 +56,7 @@
 }
 
 .bottomNav button.active::after{
-  background: var(--text); /* warna garis aktif */
+  background: #333333; /* warna garis aktif */
   transform: translateX(-50%) scaleX(1);
 }
 

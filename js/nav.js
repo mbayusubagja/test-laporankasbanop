@@ -14,11 +14,34 @@ function lihatProfil(){
   window.location.href = "user-profil.html";
 }
 
-function setBottomNavActive(menu){
+
+function setBottomNavActive(){
+
+    const page =
+        location.pathname
+        .split("/")
+        .pop()
+        .replace(".html", "");
+
+    const menuMap = {
+        "dashboard": "dashboard",
+        "riwayat-transaksi": "laporan",
+        "user-profil": "user-profil",
+        "dompet": "dompet"
+    };
+
+    const menu = menuMap[page];
 
     document.querySelectorAll(".bottomNav button")
-        .forEach(btn => btn.classList.remove("active"));
+        .forEach(btn => {
 
-    document.querySelector(`.bottomNav button[data-menu="${menu}"]`)
-        ?.classList.add("active");
+            btn.classList.toggle(
+                "active",
+                btn.dataset.menu === menu
+            );
+
+        });
 }
+
+
+setBottomNavActive();

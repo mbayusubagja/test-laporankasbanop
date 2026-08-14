@@ -170,33 +170,6 @@ function aturProfil(){
   window.location.href = "user-profil.html";
 }
 
-// ================== parse tanggal ===============
-function parseTanggal(trx){
-
-  // timestamp baru
-  if(trx.timestamp){
-
-    return new Date(
-      Number(trx.timestamp)
-    );
-  }
-
-  // data lama
-  if(trx.tanggal){
-
-    const pecah =
-      trx.tanggal.split("-");
-
-    return new Date(
-      Number(pecah[0]),
-      Number(pecah[1]) - 1,
-      Number(pecah[2])
-    );
-  }
-
-  return new Date();
-}
-
 // ================ always login =====================
 
 const rememberLogin =
@@ -241,11 +214,14 @@ if(rememberLogin){
 
 // ================== load profil ==================
 
-const PROFILE_CACHE_TIME = 24 * 60 * 60 * 1000; // 1 hari
+const PROFILE_CACHE_TIME =
+  24 * 60 * 60 * 1000; // 1 hari
+
 
 async function loadProfil() {
 
-  const cacheKey = "profil_" + user.userId;
+  const cacheKey =
+    "profil_" + user.userId;
 
   try {
 
@@ -254,92 +230,166 @@ async function loadProfil() {
     const cache =
       localStorage.getItem(cacheKey);
 
-    if (cache) {
+    if(cache){
 
-      const data = JSON.parse(cache);
+      const data =
+        JSON.parse(cache);
 
       const umur =
         Date.now() - data.timestamp;
 
-      // cache masih valid
-      if (umur < PROFILE_CACHE_TIME) {
+      if(
+        umur < PROFILE_CACHE_TIME
+      ){
 
-        tampilkanProfil(data.profil);
+        tampilkanProfil(
+          data.profil
+        );
 
         return;
       }
     }
 
-    // ================= FETCH =================
 
-    const res = await fetch(
-      API +
-      "?mode=getProfil&id_user=" +
-      encodeURIComponent(user.userId)
-    );
+    // ================= FETCH SUPABASE =================
 
-    const hasil = await res.json();
+    const {
+      data: profil,
+      error
+    } = await db
 
-    if (!hasil.ok) {
+      .from("users")
+
+      .select(`
+        id_user,
+        no_hp,
+        role,
+        nama,
+        jabatan,
+        email
+      `)
+
+      .eq(
+        "id_user",
+        user.userId
+      )
+
+      .maybeSingle();
+
+
+    if(error){
+
+      console.error(
+        "Supabase load profil error:",
+        error
+      );
+
+      throw error;
+    }
+
+
+    // ================= USER TIDAK DITEMUKAN =================
+
+    if(!profil){
+
       throw new Error(
-        hasil.message || "Gagal mengambil profil"
+        "User tidak ditemukan"
       );
     }
 
-    const profil = hasil.data;
+
+    console.log(
+      "Profil dari Supabase:",
+      profil
+    );
+
 
     // ================= SIMPAN CACHE =================
 
     localStorage.setItem(
+
       cacheKey,
+
       JSON.stringify({
-        timestamp: Date.now(),
-        profil: profil
+
+        timestamp:
+          Date.now(),
+
+        profil:
+          profil
+
       })
+
     );
+
 
     // ================= TAMPILKAN =================
 
-    tampilkanProfil(profil);
+    tampilkanProfil(
+      profil
+    );
 
-  } catch (err) {
+
+  }catch(err){
 
     console.error(
       "Gagal load profil:",
       err
     );
 
-    // kalau fetch gagal tetapi cache lama masih ada
+
+    // ================= FALLBACK CACHE =================
+
     const cache =
-      localStorage.getItem(cacheKey);
+      localStorage.getItem(
+        cacheKey
+      );
 
-    if (cache) {
+    if(cache){
 
-      try {
+      try{
 
         const data =
           JSON.parse(cache);
 
-        tampilkanProfil(data.profil);
+        tampilkanProfil(
+          data.profil
+        );
 
         return;
 
-      } catch(e) {}
+      }catch(e){
+
+        console.error(
+          "Cache profil rusak:",
+          e
+        );
+
+      }
 
     }
+
 
     showToast(
       "Gagal memuat profil"
     );
+
   }
+
 }
 
 function tampilkanProfil(profil) {
 
+  console.log("PROFIL:", profil);
+
+  const nama = profil.nama;
+  const jabatan = profil.jabatan;
+  const gmail = profil.gmail || profil.email;
+
   if (
-    !profil.nama ||
-    !profil.jabatan ||
-    !profil.gmail
+    !nama ||
+    !jabatan ||
+    !gmail
   ) {
 
     showToast(
@@ -347,9 +397,7 @@ function tampilkanProfil(profil) {
     );
 
     setTimeout(() => {
-
       location.href = "profil.html";
-
     }, 1000);
 
     return;
@@ -359,10 +407,8 @@ function tampilkanProfil(profil) {
     document.getElementById("userInfo");
 
   if (userInfo) {
-
     userInfo.innerText =
-      profil.nama || user.noHp;
-
+      nama || user.noHp;
   }
 }
 
@@ -416,14 +462,10 @@ function renderDashboard(hasil){
 
   // ================= SORT =================
 
-  transaksi.sort((a,b) => {
+  transaksi.sort((a, b) => {
 
-    return Number(
-      b.timestamp || 0
-    ) -
-    Number(
-      a.timestamp || 0
-    );
+    return new Date(b.tanggal) -
+          new Date(a.tanggal);
 
   });
 
@@ -593,36 +635,14 @@ async function loadDashboard(force = false){
 
   try{
 
-    const res =
-      await fetch(
-        API +
-        "?mode=dashboard&userId=" +
-        encodeURIComponent(
-          user.userId
-        )
-      );
-
-
-    if(!res.ok){
-
-      throw new Error(
-        "HTTP " + res.status
-      );
-
-    }
-
-
     const hasil =
-      await res.json();
-
+      await getDashboardSupabase();
 
     if(!hasil.ok){
-
       throw new Error(
         hasil.message ||
         "Gagal mengambil dashboard"
       );
-
     }
 
 
@@ -687,42 +707,24 @@ async function loadDashboard(force = false){
 
 function formatTanggal(trx){
 
-  // ================= DATA BARU =================
-
-  if(trx.timestamp){
-
-    return new Date(trx.timestamp)
-      .toLocaleString("id-ID", {
-
-        timeZone: "Asia/Jakarta",
-
-        day: "2-digit",
-
-        month: "short",
-
-        year: "numeric",
-
-        hour: "2-digit",
-
-        minute: "2-digit"
-
-      });
+  if(!trx.tanggal){
+    return "-";
   }
 
-  // ================= DATA LAMA =================
-
   return new Date(trx.tanggal)
-    .toLocaleDateString("id-ID", {
+    .toLocaleString("id-ID", {
 
       timeZone: "Asia/Jakarta",
 
       day: "2-digit",
-
       month: "short",
+      year: "numeric",
 
-      year: "numeric"
+      hour: "2-digit",
+      minute: "2-digit"
 
     });
+
 }
 
 // ======================= hapus transaksi =====================
@@ -735,41 +737,58 @@ async function hapusTransaksi(id){
 
   try{
 
-    const res = await fetch(API, {
-      method: "POST",
-      body: JSON.stringify({
-        mode: "hapusTransaksi",
-        id: id,
-        userId: user.userId
-      })
-    });
+    const { error } = await db
+      .from("transactions")
+      .delete()
+      .eq("id", id)
+      .eq("id_user", user.userId);
 
-    const hasil = await res.json();
+    if(error){
 
-    if(hasil.ok){
-
-      clearDashboardCache();
-
-      showToast(
-        hasil.msg ||
-        "Transaksi berhasil dihapus"
+      console.error(
+        "Hapus transaksi Supabase:",
+        error
       );
 
-      await loadDashboard(true);
-
-    }else{
-
       showToast(
-        hasil.msg ||
+        error.message ||
         "Gagal menghapus transaksi"
       );
 
+      return;
     }
 
+    // ================= CLEAR CACHE =================
+
+    clearDashboardCache();
+
+    localStorage.removeItem(
+      "riwayat_cache_" + user.userId
+    );
+
+    // ================= NOTIFIKASI =================
+
+    showToast(
+      "Transaksi berhasil dihapus"
+    );
+
+    // ================= LOAD ULANG =================
+
+    await loadDashboard(true);
+
   }catch(err){
-    console.error(err);
-    showToast("Error server / CORS");
+
+    console.error(
+      "Hapus transaksi:",
+      err
+    );
+
+    showToast(
+      "Terjadi kesalahan saat menghapus transaksi"
+    );
+
   }
+
 }
 
 // ================== show toast transaksi ==================
@@ -841,3 +860,113 @@ document.addEventListener(
 
   }
 );
+
+async function getDashboardSupabase(){
+
+  try {
+
+    const { data, error } = await db
+      .from("transactions")
+      .select(`
+        id,
+        id_user,
+        jenis,
+        kategori,
+        nominal,
+        tanggal,
+        timestamp,
+        catatan,
+        url_image,
+        file_id
+      `)
+      .eq("id_user", user.userId)
+      .order("tanggal", { ascending: false });
+
+    if(error){
+      console.error(
+        "Supabase dashboard error:",
+        error
+      );
+
+      throw new Error(error.message);
+    }
+
+    const transaksi = data.map(trx => ({
+      ...trx,
+
+      // Supaya frontend lama tetap kompatibel
+      fileId: trx.file_id,
+
+      // timestamp kalau diperlukan frontend
+      timestamp: trx.timestamp
+    }));
+
+    // ================= SALDO =================
+
+    let saldo = 0;
+    let totalMasuk = 0;
+    let totalKeluar = 0;
+
+    const sekarang = new Date();
+
+    const bulanSekarang =
+      sekarang.getMonth();
+
+    const tahunSekarang =
+      sekarang.getFullYear();
+
+    transaksi.forEach(trx => {
+
+      const nominal =
+        Number(trx.nominal) || 0;
+
+      const tanggal =
+        new Date(trx.tanggal);
+
+      // SALDO
+      if(trx.jenis === "masuk"){
+        saldo += nominal;
+      }
+
+      if(trx.jenis === "keluar"){
+        saldo -= nominal;
+      }
+
+      // TOTAL BULAN BERJALAN
+      if(
+        tanggal.getMonth() === bulanSekarang &&
+        tanggal.getFullYear() === tahunSekarang
+      ){
+
+        if(trx.jenis === "masuk"){
+          totalMasuk += nominal;
+        }
+
+        if(trx.jenis === "keluar"){
+          totalKeluar += nominal;
+        }
+
+      }
+
+    });
+
+    return {
+      ok: true,
+      saldo,
+      totalMasuk,
+      totalKeluar,
+      transaksi
+    };
+
+  } catch(err){
+
+    console.error(
+      "getDashboardSupabase:",
+      err
+    );
+
+    throw err;
+
+  }
+
+}

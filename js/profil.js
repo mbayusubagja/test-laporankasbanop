@@ -53,46 +53,96 @@ btnSimpan.addEventListener("click", async function () {
   btnSimpan.innerText = "Menyimpan...";
   status.innerText = "Proses...";
 
-  const data = {
-    mode: "simpanProfil",
-    id_user: user.userId,
-    nama: nama,
-    jabatan: jabatan,
-    gmail: gmail
-  };
-
   try {
 
-    const res = await fetch(API, {
-      method: "POST",
-      body: JSON.stringify(data)
-    });
+  const { error } = await db
+    .from("users")
+    .update({
+      nama: nama,
+      jabatan: jabatan,
+      email: gmail
+    })
+    .eq(
+      "id_user",
+      user.userId
+    );
 
-    const r = await res.json();
-
-    btnSimpan.disabled = false;
-    btnSimpan.innerText = "Simpan";
-
-    if (!r.ok) {
-      status.innerText = r.message || "❌ Gagal menyimpan";
-      return;
-    }
-
-    showToast("Profil berhasil disimpan");
-
-    setTimeout(() => {
-      localStorage.removeItem(
-        "profil_cache_" + user.userId
-      );
-      location.replace("dashboard.html");
-    }, 1000);
-    
-  } catch (err) {
-    console.log(err);
-    btnSimpan.disabled = false;
-    btnSimpan.innerText = "Simpan";
-    status.innerText = "❌ Gagal menyimpan";
+  if(error){
+    throw error;
   }
+
+  showToast(
+    "Profil berhasil disimpan"
+  );
+
+  // ================= CACHE =================
+
+  localStorage.removeItem(
+    "profil_cache_" + user.userId
+  );
+
+  // cache lama yang sebelumnya dipakai dashboard
+  localStorage.removeItem(
+    "profil_" + user.userId
+  );
+
+  // ================= UPDATE USER LOCAL =================
+
+  const updatedUser = {
+    ...user,
+    nama: nama,
+    jabatan: jabatan,
+    email: gmail
+  };
+
+  if(
+    sessionStorage.getItem("user")
+  ){
+
+    sessionStorage.setItem(
+      "user",
+      JSON.stringify(updatedUser)
+    );
+
+  }
+
+  if(
+    localStorage.getItem("user")
+  ){
+
+    localStorage.setItem(
+      "user",
+      JSON.stringify(updatedUser)
+    );
+
+  }
+
+  localStorage.setItem(
+    "activeUser",
+    JSON.stringify(updatedUser)
+  );
+
+  setTimeout(() => {
+
+    location.replace(
+      "dashboard.html"
+    );
+
+  }, 1000);
+
+} catch(err) {
+
+  console.error(
+    "Simpan profil Supabase error:",
+    err
+  );
+
+  showToast(
+    err.message ||
+    "Gagal menyimpan profil"
+  );
+
+}
 
 });
 

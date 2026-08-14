@@ -1,55 +1,186 @@
-async function getImageBase64(fileId) {
+// ================================================================
+// DOWNLOAD LAPORAN PDF
+// TRANSAKSI : SUPABASE
+// PROFIL    : SUPABASE
+// GAMBAR    : GOOGLE DRIVE VIA APPS SCRIPT
+// ================================================================
 
-  const res = await fetch(
-    API + "?mode=image&id=" + fileId
-  );
 
-  const data = await res.json();
-  return data.base64;
+// ================================================================
+// AMBIL GAMBAR BASE64 DARI GOOGLE DRIVE
+// ================================================================
+
+async function getImageBase64(fileId, retry = 2) {
+
+  const url =
+    API +
+    "?mode=image&id=" +
+    encodeURIComponent(fileId);
+
+  for (
+    let attempt = 0;
+    attempt <= retry;
+    attempt++
+  ) {
+
+    try {
+
+      const res = await fetch(url);
+
+      const text = await res.text();
+
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+
+      let data;
+
+      try {
+        data = JSON.parse(text);
+      } catch {
+        throw new Error(
+          "Server tidak mengembalikan JSON"
+        );
+      }
+
+      if (!data.base64) {
+        throw new Error(
+          "Base64 gambar tidak tersedia"
+        );
+      }
+
+      return data.base64;
+
+    } catch (err) {
+
+      console.warn(
+        `Gagal gambar ${fileId}, percobaan ${attempt + 1}`,
+        err
+      );
+
+      if (attempt < retry) {
+
+        await new Promise(resolve =>
+          setTimeout(
+            resolve,
+            800 * (attempt + 1)
+          )
+        );
+
+      } else {
+
+        throw err;
+
+      }
+
+    }
+
+  }
+
 }
+
+
+// ================================================================
+// VERSI AMAN
+// GAMBAR GAGAL TIDAK MEMBATALKAN PDF
+// ================================================================
+
+async function getImageBase64Safe(
+  fileId,
+  retry = 2
+) {
+
+  try {
+
+    return await getImageBase64(
+      fileId,
+      retry
+    );
+
+  } catch (err) {
+
+    console.warn(
+      "Gambar dilewati:",
+      fileId,
+      err
+    );
+
+    return null;
+
+  }
+
+}
+
+
+// ================================================================
+// AMBIL FILE ID GOOGLE DRIVE
+// ================================================================
 
 function toDriveDirectUrl(input) {
-  if (!input) return null;
 
-  const match = input.match(/[-\w]{25,}/);
-  if (!match) return null;
-
-  return match[0]; // hanya fileId
-}
-
-// ==================== helper chunk pecah list tabel =================
-function chunkArray(arr, size) {
-  const result = [];
-  for (let i = 0; i < arr.length; i += size) {
-    result.push(arr.slice(i, i + size));
+  if (!input) {
+    return null;
   }
-  return result;
+
+  const match =
+    String(input).match(/[-\w]{25,}/);
+
+  if (!match) {
+    return null;
+  }
+
+  return match[0];
+
 }
 
-// ========================= smart chunk =============================
+
+// ================================================================
+// SMART CHUNK
+// ================================================================
 
 function smartChunk(rows) {
+
   const result = [];
 
-  let firstPageSize = 9;
-  let otherPageSize = 17;
+  const firstPageSize = 9;
+  const otherPageSize = 17;
 
   let i = 0;
 
-  // halaman 1
-  result.push(rows.slice(i, i + firstPageSize));
-  i += firstPageSize;
+  if (rows.length > 0) {
 
-  // halaman berikutnya
+    result.push(
+      rows.slice(
+        i,
+        i + firstPageSize
+      )
+    );
+
+    i += firstPageSize;
+
+  }
+
   while (i < rows.length) {
-    result.push(rows.slice(i, i + otherPageSize));
+
+    result.push(
+      rows.slice(
+        i,
+        i + otherPageSize
+      )
+    );
+
     i += otherPageSize;
+
   }
 
   return result;
+
 }
 
-// ================= FORMAT TANGGAL + JAM =================
+
+// ================================================================
+// FORMAT TANGGAL
+// ================================================================
 
 function formatTanggalJamLaporan(date) {
 
@@ -75,7 +206,8 @@ function formatTanggalJamPDF(trx) {
     parseTanggal(trx);
 
   return (
-    formatTanggalIndonesia(date) + " " +
+    formatTanggalIndonesia(date) +
+    " " +
     date.toLocaleTimeString(
       "id-ID",
       {
@@ -88,7 +220,10 @@ function formatTanggalJamPDF(trx) {
 
 }
 
-// ================= NAMA FILE PDF =================
+
+// ================================================================
+// NAMA FILE
+// ================================================================
 
 function buatNamaFileLaporan(
   namaUser,
@@ -99,14 +234,12 @@ function buatNamaFileLaporan(
   function formatFile(date) {
 
     const d =
-      String(
-        date.getDate()
-      ).padStart(2, "0");
+      String(date.getDate())
+        .padStart(2, "0");
 
     const m =
-      String(
-        date.getMonth() + 1
-      ).padStart(2, "0");
+      String(date.getMonth() + 1)
+        .padStart(2, "0");
 
     const y =
       date.getFullYear();
@@ -114,7 +247,6 @@ function buatNamaFileLaporan(
     return `${d}-${m}-${y}`;
 
   }
-
 
   const nama =
     String(namaUser || "User")
@@ -127,115 +259,155 @@ function buatNamaFileLaporan(
         "-"
       );
 
-
   return (
     `LAPORAN-${nama}-` +
-    `${formatFile(start)}-` +
-    `SD-` +
+    `${formatFile(start)}-SD-` +
     `${formatFile(end)}.pdf`
   );
 
 }
 
-// =============== format tgl cetak ===============================
 
-function formatTanggalCetak(date = new Date()) {
-  const hari = date.getDate();
-  const bulan = date.toLocaleString("id-ID", { month: "long" });
-  const tahun = date.getFullYear();
+// ================================================================
+// FORMAT TANGGAL CETAK
+// ================================================================
 
-  return `${hari} ${bulan.charAt(0).toUpperCase() + bulan.slice(1)} ${tahun}`;
+function formatTanggalCetak(
+  date = new Date()
+) {
+
+  const hari =
+    date.getDate();
+
+  const bulan =
+    date.toLocaleString(
+      "id-ID",
+      {
+        month: "long"
+      }
+    );
+
+  const tahun =
+    date.getFullYear();
+
+  return (
+    `${hari} ` +
+    `${bulan.charAt(0).toUpperCase() + bulan.slice(1)} ` +
+    `${tahun}`
+  );
+
 }
 
-const tanggalCetak = formatTanggalCetak();
 
-// ================= huruf kapital ========================
+// ================================================================
+// CAPITALIZE
+// ================================================================
+
 function capitalizeWords(teks) {
-  return teks
+
+  return String(teks || "")
     .split(" ")
     .map(kata =>
       kata.charAt(0).toUpperCase() +
       kata.slice(1).toLowerCase()
     )
     .join(" ");
+
 }
 
-// ================= helper ukuran image ====================
+
+// ================================================================
+// UKURAN GAMBAR
+// ================================================================
 
 function getImageSize(base64) {
-  return new Promise((resolve) => {
-    const img = new Image();
 
-    img.onload = function () {
-      resolve({
-        width: img.width,
-        height: img.height
-      });
-    };
+  return new Promise(
+    (resolve, reject) => {
 
-    img.src = base64;
-  });
+      const img = new Image();
+
+      img.onload = function () {
+
+        resolve({
+          width: img.width,
+          height: img.height
+        });
+
+      };
+
+      img.onerror = function () {
+
+        reject(
+          new Error(
+            "Gagal membaca gambar"
+          )
+        );
+
+      };
+
+      img.src = base64;
+
+    }
+  );
+
 }
 
-// ================= helper bulan ====================
 
-function getMonthInfo(bulanKey) {
+// ================================================================
+// DOWNLOAD LAPORAN PDF
+// ================================================================
 
-  const [year, month] = bulanKey.split("-").map(Number);
-
-  const date = new Date(year, month - 1, 1);
-
-  const namaBulan = date.toLocaleString("id-ID", { month: "long" });
-
-  const lastDay = new Date(year, month, 0).getDate();
-
-  return {
-    nama: namaBulan,
-    tahun: year,
-    start: `01 ${namaBulan} ${year}`,
-    end: `${lastDay} ${namaBulan} ${year}`
-  };
-}
-
-// =================== download pdf =================================
 async function downloadLaporanPDF(
   waktuAwal,
   waktuAkhir,
   btn = null
 ) {
 
+  // ==============================================================
+  // VALIDASI LIBRARY
+  // ==============================================================
+
+  if (
+    !window.jspdf ||
+    !window.jspdf.jsPDF
+  ) {
+
+    throw new Error(
+      "Library jsPDF belum tersedia"
+    );
+
+  }
+
+  if (
+    typeof parseDatetimeLocal !==
+    "function"
+  ) {
+
+    throw new Error(
+      "parseDatetimeLocal tidak tersedia"
+    );
+
+  }
+
+  if (
+    typeof parseTanggal !==
+    "function"
+  ) {
+
+    throw new Error(
+      "parseTanggal tidak tersedia"
+    );
+
+  }
+
   const { jsPDF } =
     window.jspdf;
 
-  const doc =
-    new jsPDF();
 
-
-  // =====================================================
-  // AMBIL SEMUA TRANSAKSI
-  // =====================================================
-
-  const res =
-    await fetch(
-      API +
-      "?mode=riwayat&userId=" +
-      user.userId
-    );
-
-
-  const hasil =
-    await res.json();
-
-
-  let data =
-    Object.values(
-      hasil.bulan || {}
-    ).flat();
-
-
-  // =====================================================
-  // BATAS WAKTU
-  // =====================================================
+  // ==============================================================
+  // VALIDASI WAKTU
+  // ==============================================================
 
   const start =
     parseDatetimeLocal(
@@ -247,7 +419,6 @@ async function downloadLaporanPDF(
       waktuAkhir
     );
 
-
   if (!start || !end) {
 
     throw new Error(
@@ -255,7 +426,6 @@ async function downloadLaporanPDF(
     );
 
   }
-
 
   if (start > end) {
 
@@ -266,40 +436,173 @@ async function downloadLaporanPDF(
   }
 
 
-  // =====================================================
-  // FILTER TRANSAKSI
-  // =====================================================
+  // ==============================================================
+  // PROGRESS
+  // ==============================================================
 
-  data =
-    data.filter(trx => {
+  if (btn) {
 
-      const waktu =
-        parseTanggal(trx);
+    updateProgressButton(
+      btn,
+      5,
+      "Mengambil transaksi..."
+    );
 
-      return (
-        waktu >= start &&
-        waktu <= end
-      );
-
-    });
+  }
 
 
-  // =====================================================
-  // URUTKAN
-  // =====================================================
+  // ==============================================================
+  // AMBIL TRANSAKSI DARI SUPABASE
+  // ==============================================================
 
-  data.sort(
-    (a, b) =>
-      parseTanggal(a) -
-      parseTanggal(b)
-  );
+  const {
+    data: transaksiData,
+    error: transaksiError
+  } = await db
+
+    .from("transactions")
+
+    .select(`
+      id,
+      id_user,
+      jenis,
+      kategori,
+      nominal,
+      tanggal,
+      timestamp,
+      catatan,
+      url_image,
+      file_id
+    `)
+
+    .eq(
+      "id_user",
+      user.userId
+    )
+
+    .gte(
+      "tanggal",
+      start.toISOString()
+    )
+
+    .lte(
+      "tanggal",
+      end.toISOString()
+    )
+
+    .order(
+      "tanggal",
+      {
+        ascending: true
+      }
+    );
 
 
-  // =====================================================
-  // LOAD GAMBAR BUKTI
-  // =====================================================
+  if (transaksiError) {
 
-  const imageCache = {};
+    console.error(
+      "Supabase transaksi:",
+      transaksiError
+    );
+
+    throw new Error(
+      transaksiError.message ||
+      "Gagal mengambil transaksi"
+    );
+
+  }
+
+
+  // ==============================================================
+  // NORMALISASI TRANSAKSI
+  // ==============================================================
+
+  const data =
+    (transaksiData || [])
+      .map(trx => ({
+
+        ...trx,
+
+        // kompatibilitas frontend lama
+        fileId:
+          trx.file_id
+
+      }));
+
+
+  // ==============================================================
+  // PROFIL DARI SUPABASE
+  // ==============================================================
+
+  if (btn) {
+
+    updateProgressButton(
+      btn,
+      8,
+      "Mengambil profil..."
+    );
+
+  }
+
+  let namaUser = "-";
+  let jabatanUser = "-";
+
+  try {
+
+    const {
+      data: profil,
+      error: profilError
+    } = await db
+
+      .from("users")
+
+      .select(`
+        nama,
+        jabatan,
+        email
+      `)
+
+      .eq(
+        "id_user",
+        user.userId
+      )
+
+      .maybeSingle();
+
+
+    if (profilError) {
+
+      throw profilError;
+
+    }
+
+
+    if (profil) {
+
+      namaUser =
+        profil.nama || "-";
+
+      jabatanUser =
+        profil.jabatan || "-";
+
+    }
+
+  } catch (err) {
+
+    console.warn(
+      "Gagal mengambil profil:",
+      err
+    );
+
+  }
+
+
+  // ==============================================================
+  // BUAT PDF
+  // ==============================================================
+
+  const doc =
+    new jsPDF();
 
   const pageHeight =
     doc.internal.pageSize.getHeight();
@@ -308,92 +611,180 @@ async function downloadLaporanPDF(
     doc.internal.pageSize.getWidth();
 
 
-  let loaded = 0;
+  // ==============================================================
+  // IMAGE CACHE
+  // GAMBAR TETAP DARI GOOGLE DRIVE
+  // ==============================================================
+
+  const imageCache = {};
+
+
+  // ==============================================================
+  // TRANSAKSI YANG PUNYA GAMBAR
+  // ==============================================================
+
+  const imageTransactions =
+    data.filter(
+      trx =>
+        trx.url_image ||
+        trx.file_id
+    );
 
 
   const totalLampiran =
-    data.filter(
-      x => x.url_image
-    ).length;
+    imageTransactions.length;
 
 
-  await Promise.all(
+  // ==============================================================
+  // DOWNLOAD GAMBAR BERTAHAP
+  // ==============================================================
 
-    data.map(
-      async trx => {
+  const BATCH_SIZE = 3;
 
-        if (!trx.url_image)
-          return;
+  for (
+    let i = 0;
+    i < imageTransactions.length;
+    i += BATCH_SIZE
+  ) {
 
-
-        const fileId =
-          toDriveDirectUrl(
-            trx.url_image
-          );
-
-
-        if (!fileId)
-          return;
-
-
-        const imgBase64 =
-          await getImageBase64(
-            fileId
-          );
+    const batch =
+      imageTransactions.slice(
+        i,
+        i + BATCH_SIZE
+      );
 
 
-        const size =
-          await getImageSize(
-            imgBase64
-          );
+    await Promise.all(
+
+      batch.map(
+        async trx => {
+
+          // Prioritas file_id
+          // kemudian url_image
+
+          const sumberGambar =
+            trx.file_id ||
+            trx.url_image;
+
+          const fileId =
+            toDriveDirectUrl(
+              sumberGambar
+            );
 
 
-        imageCache[fileId] = {
-          base64: imgBase64,
-          size: size
-        };
+          if (!fileId) {
+            return;
+          }
 
 
-        loaded++;
+          // CACHE
+
+          if (
+            imageCache[fileId]
+          ) {
+
+            return;
+
+          }
 
 
-        if (btn) {
+          // DOWNLOAD DRIVE
 
-          const persen =
-            totalLampiran > 0
-              ? Math.round(
-                  (loaded / totalLampiran) * 80
-                )
-              : 0;
+          const imgBase64 =
+            await getImageBase64Safe(
+              fileId,
+              2
+            );
 
-          updateProgressButton(
-            btn,
-            persen,
-            `Lampiran ${loaded}/${totalLampiran}`
-          );
+
+          if (!imgBase64) {
+            return;
+          }
+
+
+          // UKURAN GAMBAR
+
+          try {
+
+            const size =
+              await getImageSize(
+                imgBase64
+              );
+
+
+            imageCache[fileId] = {
+
+              base64:
+                imgBase64,
+
+              size:
+                size
+
+            };
+
+          } catch (err) {
+
+            console.warn(
+              "Gagal membaca ukuran gambar:",
+              fileId,
+              err
+            );
+
+          }
 
         }
+      )
 
-      }
-    )
+    );
 
-  );
 
+    // PROGRESS
+
+    if (btn) {
+
+      const selesai =
+        Math.min(
+          i + batch.length,
+          totalLampiran
+        );
+
+      const persen =
+        totalLampiran > 0
+          ? Math.round(
+              (selesai /
+                totalLampiran) * 75
+            )
+          : 0;
+
+      updateProgressButton(
+        btn,
+        persen,
+        `Lampiran ${selesai}/${totalLampiran}`
+      );
+
+    }
+
+  }
+
+
+  // ==============================================================
+  // MEMBUAT PDF
+  // ==============================================================
 
   if (btn) {
 
     updateProgressButton(
       btn,
-      90,
+      80,
       "Membuat PDF..."
     );
 
   }
 
 
-  // =====================================================
+  // ==============================================================
   // RINGKASAN
-  // =====================================================
+  // ==============================================================
 
   let totalMasuk = 0;
   let totalKeluar = 0;
@@ -401,12 +792,16 @@ async function downloadLaporanPDF(
 
   data.forEach(trx => {
 
+    const nominal =
+      Number(trx.nominal) || 0;
+
+
     if (
       trx.jenis === "masuk"
     ) {
 
       totalMasuk +=
-        Number(trx.nominal);
+        nominal;
 
     }
 
@@ -416,7 +811,7 @@ async function downloadLaporanPDF(
     ) {
 
       totalKeluar +=
-        Number(trx.nominal);
+        nominal;
 
     }
 
@@ -428,18 +823,18 @@ async function downloadLaporanPDF(
     totalKeluar;
 
 
-  // =====================================================
-  // FORMAT PERIODE PDF
-  // =====================================================
+  // ==============================================================
+  // PERIODE
+  // ==============================================================
 
   const periodeText =
     `${formatTanggalJamLaporan(start)} - ` +
     `${formatTanggalJamLaporan(end)}`;
 
 
-  // =====================================================
+  // ==============================================================
   // LOGO
-  // =====================================================
+  // ==============================================================
 
   const logo =
     document.getElementById(
@@ -449,24 +844,36 @@ async function downloadLaporanPDF(
 
   if (
     logo &&
-    logo.complete
+    logo.complete &&
+    logo.naturalWidth > 0
   ) {
 
-    doc.addImage(
-      logo,
-      "PNG",
-      85,
-      5,
-      40,
-      40
-    );
+    try {
+
+      doc.addImage(
+        logo,
+        "PNG",
+        85,
+        5,
+        40,
+        40
+      );
+
+    } catch (err) {
+
+      console.warn(
+        "Logo gagal dimasukkan:",
+        err
+      );
+
+    }
 
   }
 
 
-  // =====================================================
+  // ==============================================================
   // HEADER
-  // =====================================================
+  // ==============================================================
 
   doc.setFontSize(18);
 
@@ -489,9 +896,9 @@ async function downloadLaporanPDF(
   );
 
 
-  // =====================================================
+  // ==============================================================
   // RINGKASAN
-  // =====================================================
+  // ==============================================================
 
   doc.roundedRect(
     14,
@@ -517,7 +924,6 @@ async function downloadLaporanPDF(
     80
   );
 
-
   doc.text(
     "Pengeluaran",
     18,
@@ -529,7 +935,6 @@ async function downloadLaporanPDF(
     55,
     88
   );
-
 
   doc.text(
     "Saldo",
@@ -544,88 +949,90 @@ async function downloadLaporanPDF(
   );
 
 
-  // =====================================================
+  // ==============================================================
   // TABLE
-  // =====================================================
+  // ==============================================================
 
-  const rows = data.map((trx, i) => {
+  const rows =
+    data.map(
+      (trx, i) => {
 
-    const waktu = parseTanggal(trx);
+        const waktu =
+          parseTanggal(trx);
 
-    return [
-        i + 1,
-        formatTanggalIndonesia(waktu),
-        waktu.toLocaleTimeString("id-ID", {
-            timeZone: "Asia/Jakarta",
-            hour: "2-digit",
-            minute: "2-digit"
-        }),
-        capitalizeWords(trx.kategori || "-"),
-        capitalizeWords(trx.catatan || "-"),
-        trx.jenis === "masuk"
-            ? formatRupiah(trx.nominal)
+
+        return [
+
+          i + 1,
+
+          formatTanggalIndonesia(
+            waktu
+          ),
+
+          waktu.toLocaleTimeString(
+            "id-ID",
+            {
+              timeZone:
+                "Asia/Jakarta",
+
+              hour:
+                "2-digit",
+
+              minute:
+                "2-digit"
+            }
+          ),
+
+          capitalizeWords(
+            trx.kategori ||
+            "-"
+          ),
+
+          capitalizeWords(
+            trx.catatan ||
+            "-"
+          ),
+
+          trx.jenis === "masuk"
+            ? formatRupiah(
+                trx.nominal
+              )
             : "",
-        trx.jenis === "keluar"
-            ? formatRupiah(trx.nominal)
+
+          trx.jenis === "keluar"
+            ? formatRupiah(
+                trx.nominal
+              )
             : ""
-    ];
 
-});
+        ];
 
-
-  // =====================================================
-  // PROFIL
-  // =====================================================
-
-  let jabatanUser = "-";
-  let namaUser = "-";
-
-
-  const profilRes =
-    await fetch(
-      API +
-      "?mode=getProfil&id_user=" +
-      user.userId
+      }
     );
 
-
-  const profil =
-    await profilRes.json();
-
-
-  namaUser =
-    profil.data?.nama ||
-    "-";
-
-
-  jabatanUser =
-    profil.data?.jabatan ||
-    "-";
-
-
-  // =====================================================
-  // TABLE CHUNK
-  // =====================================================
 
   const chunks =
     smartChunk(rows);
 
 
-  // Kalau tidak ada transaksi
-  if (chunks.length === 0) {
+  if (
+    chunks.length === 0
+  ) {
 
     chunks.push([]);
 
   }
 
 
+  // ==============================================================
+  // TABEL PDF
+  // ==============================================================
+
   chunks.forEach(
     (chunk, index) => {
 
       if (index > 0) {
-
         doc.addPage();
-
       }
 
 
@@ -640,23 +1047,21 @@ async function downloadLaporanPDF(
           bottom: 70
         },
 
-
         head: [[
-            "No",
-            "Tanggal",
-            "Jam",
-            "Kategori",
-            "Keterangan",
-            "Masuk",
-            "Keluar"
+          "No",
+          "Tanggal",
+          "Jam",
+          "Kategori",
+          "Keterangan",
+          "Masuk",
+          "Keluar"
         ]],
 
+        body:
+          chunk,
 
-        body: chunk,
-
-
-        theme: "grid",
-
+        theme:
+          "grid",
 
         styles: {
 
@@ -665,7 +1070,6 @@ async function downloadLaporanPDF(
           cellPadding: 2
 
         },
-
 
         headStyles: {
 
@@ -677,37 +1081,37 @@ async function downloadLaporanPDF(
           fontStyle:
             "bold",
 
-          lineWidth: 0.2,
+          lineWidth:
+            0.2,
 
           halign:
             "center"
 
         },
 
-
         columnStyles: {
 
-            0: {
-                halign: "center",
-                cellWidth: 10
-            },
+          0: {
+            halign: "center",
+            cellWidth: 10
+          },
 
-            1: {
-                cellWidth: 27
-            },
+          1: {
+            cellWidth: 27
+          },
 
-            2: {
-                halign: "center",
-                cellWidth: 17
-            },
+          2: {
+            halign: "center",
+            cellWidth: 17
+          },
 
-            5: {
-                halign: "right"
-            },
+          5: {
+            halign: "right"
+          },
 
-            6: {
-                halign: "right"
-            }
+          6: {
+            halign: "right"
+          }
 
         }
 
@@ -717,17 +1121,14 @@ async function downloadLaporanPDF(
   );
 
 
-  // =====================================================
+  // ==============================================================
   // TANDA TANGAN
-  // =====================================================
+  // ==============================================================
 
   const lastPage =
     doc.getNumberOfPages();
 
-
-  doc.setPage(
-    lastPage
-  );
+  doc.setPage(lastPage);
 
 
   const ttdX =
@@ -746,20 +1147,17 @@ async function downloadLaporanPDF(
     ttdY
   );
 
-
   doc.text(
     "Dilaporkan oleh,",
     ttdX,
     ttdY + 5
   );
 
-
   doc.text(
     jabatanUser,
     ttdX,
     ttdY + 10
   );
-
 
   doc.text(
     namaUser,
@@ -768,228 +1166,261 @@ async function downloadLaporanPDF(
   );
 
 
-  // =====================================================
-  // LAMPIRAN
-  // =====================================================
+  // ==============================================================
+  // LAMPIRAN GAMBAR
+  // ==============================================================
 
-  doc.addPage();
-
-
-  doc.setFontSize(16);
-
-  doc.text(
-    "LAMPIRAN BUKTI TRANSAKSI",
-    105,
-    15,
-    {
-      align: "center"
-    }
-  );
+  const cachedFiles =
+    Object.keys(
+      imageCache
+    );
 
 
-  doc.setFontSize(9);
-
-  doc.text(
-    `Periode ${periodeText}`,
-    105,
-    22,
-    {
-      align: "center"
-    }
-  );
-
-
-  let y = 30;
-
-  let num = 1;
-
-
-  for (
-    const trx of data
+  if (
+    cachedFiles.length > 0
   ) {
 
-    if (!trx.url_image)
-      continue;
+    doc.addPage();
 
 
-    const fileId =
-      toDriveDirectUrl(
-        trx.url_image
+    doc.setFontSize(16);
+
+    doc.text(
+      "LAMPIRAN BUKTI TRANSAKSI",
+      105,
+      15,
+      {
+        align: "center"
+      }
+    );
+
+
+    doc.setFontSize(9);
+
+    doc.text(
+      `Periode ${periodeText}`,
+      105,
+      22,
+      {
+        align: "center"
+      }
+    );
+
+
+    let y = 30;
+    let num = 1;
+
+
+    for (
+      const trx of data
+    ) {
+
+      const sumberGambar =
+        trx.file_id ||
+        trx.url_image;
+
+
+      if (!sumberGambar) {
+        continue;
+      }
+
+
+      const fileId =
+        toDriveDirectUrl(
+          sumberGambar
+        );
+
+
+      if (!fileId) {
+        continue;
+      }
+
+
+      const cache =
+        imageCache[fileId];
+
+
+      if (!cache) {
+        continue;
+      }
+
+
+      const imgBase64 =
+        cache.base64;
+
+      const size =
+        cache.size;
+
+
+      // ========================================================
+      // UKURAN GAMBAR
+      // ========================================================
+
+      const boxWidth = 80;
+      const boxHeight = 80;
+
+      const ratio =
+        size.width /
+        size.height;
+
+
+      let imgWidth;
+      let imgHeight;
+
+
+      if (ratio > 1) {
+
+        imgWidth =
+          boxWidth;
+
+        imgHeight =
+          boxWidth /
+          ratio;
+
+      } else {
+
+        imgHeight =
+          boxHeight;
+
+        imgWidth =
+          boxHeight *
+          ratio;
+
+      }
+
+
+      // ========================================================
+      // TINGGI BLOK
+      // ========================================================
+
+      const textHeight = 24;
+
+      const blockHeight =
+        textHeight +
+        boxHeight +
+        20;
+
+
+      if (
+        y + blockHeight >
+        pageHeight - 20
+      ) {
+
+        doc.addPage();
+
+        y = 20;
+
+      }
+
+
+      // ========================================================
+      // INFO TRANSAKSI
+      // ========================================================
+
+      doc.setFontSize(10);
+
+      doc.text(
+        `${num}. ${
+          capitalizeWords(
+            trx.kategori
+          ) || "-"
+        }`,
+        14,
+        y
       );
 
 
-    if (!fileId)
-      continue;
+      y += 5;
 
 
-    const cache =
-      imageCache[fileId];
+      doc.text(
+        `Tanggal: ${formatTanggalJamPDF(trx)}`,
+        14,
+        y
+      );
 
 
-    if (!cache)
-      continue;
+      y += 5;
 
 
-    const imgBase64 =
-      cache.base64;
+      doc.text(
+        `Catatan: ${
+          capitalizeWords(
+            trx.catatan
+          ) || "-"
+        }`,
+        14,
+        y
+      );
 
 
-    const size =
-      cache.size;
+      y += 7;
 
 
-    const boxWidth = 80;
-    const boxHeight = 80;
+      // ========================================================
+      // GAMBAR
+      // ========================================================
+
+      const x =
+        (
+          pageWidth -
+          imgWidth
+        ) / 2;
 
 
-    const ratio =
-      size.width /
-      size.height;
+      try {
+
+        doc.addImage(
+          imgBase64,
+          "JPEG",
+          x,
+          y,
+          imgWidth,
+          imgHeight
+        );
+
+      } catch (err) {
+
+        console.warn(
+          "Gagal memasukkan gambar:",
+          fileId,
+          err
+        );
+
+        continue;
+
+      }
 
 
-    let imgWidth;
-    let imgHeight;
+      y +=
+        imgHeight +
+        10;
 
 
-    if (ratio > 1) {
+      // ========================================================
+      // SEPARATOR
+      // ========================================================
 
-      imgWidth =
-        boxWidth;
+      doc.line(
+        14,
+        y,
+        195,
+        y
+      );
 
-      imgHeight =
-        boxWidth /
-        ratio;
 
-    } else {
+      y += 8;
 
-      imgHeight =
-        boxHeight;
-
-      imgWidth =
-        boxHeight *
-        ratio;
+      num++;
 
     }
-
-
-    // =================================================
-    // TINGGI BLOK
-    // =================================================
-
-    const textHeight = 24;
-
-    const blockHeight =
-      textHeight +
-      boxHeight +
-      20;
-
-
-    if (
-      y + blockHeight >
-      pageHeight - 20
-    ) {
-
-      doc.addPage();
-
-      y = 20;
-
-    }
-
-
-    // =================================================
-    // TEKS
-    // =================================================
-
-    doc.setFontSize(10);
-
-
-    doc.text(
-      `${num}. ${
-        capitalizeWords(
-          trx.kategori
-        ) || "-"
-      }`,
-      14,
-      y
-    );
-
-
-    y += 5;
-
-
-    doc.text(
-      `Tanggal: ${formatTanggalJamPDF(trx)}`,
-      14,
-      y
-    );
-
-
-    y += 5;
-
-
-    doc.text(
-      `Catatan: ${
-        capitalizeWords(
-          trx.catatan
-        ) || "-"
-      }`,
-      14,
-      y
-    );
-
-
-    y += 7;
-
-
-    // =================================================
-    // GAMBAR
-    // =================================================
-
-    const x =
-      (
-        pageWidth -
-        imgWidth
-      ) / 2;
-
-
-    doc.addImage(
-      imgBase64,
-      "JPEG",
-      x,
-      y,
-      imgWidth,
-      imgHeight
-    );
-
-
-    y +=
-      imgHeight +
-      10;
-
-
-    // =================================================
-    // SEPARATOR
-    // =================================================
-
-    doc.line(
-      14,
-      y,
-      195,
-      y
-    );
-
-
-    y += 8;
-
-
-    num++;
 
   }
 
 
-  // =====================================================
+  // ==============================================================
   // NOMOR HALAMAN
-  // =====================================================
+  // ==============================================================
 
   const totalPages =
     doc.getNumberOfPages();
@@ -1017,14 +1448,17 @@ async function downloadLaporanPDF(
   }
 
 
-  // =====================================================
-  // SIMPAN
-  // =====================================================
+  // ==============================================================
+  // SIMPAN PDF
+  // ==============================================================
 
   if (btn) {
 
-    btn.innerHTML =
-      "⏳ Menyimpan PDF...";
+    updateProgressButton(
+      btn,
+      95,
+      "Menyimpan PDF..."
+    );
 
   }
 
@@ -1045,20 +1479,15 @@ async function downloadLaporanPDF(
       end
     );
 
-  if (btn) {
-
-    updateProgressButton(
-      btn,
-      95,
-      "Menyimpan PDF..."
-    );
-
-  }
-
 
   doc.save(
     namaFile
   );
+
+
+  // ==============================================================
+  // SELESAI
+  // ==============================================================
 
   if (btn) {
 

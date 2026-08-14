@@ -92,6 +92,8 @@ let uploadedImageUrl = "";
 let uploadedFileId = "";
 
 // ================== simpan pengeluaran ==================
+// ================== SIMPAN PENGELUARAN ==================
+
 async function simpanPengeluaran(){
 
   const btn =
@@ -104,23 +106,36 @@ async function simpanPengeluaran(){
       localStorage.getItem("activeUser")
     );
 
+  if(!user){
+    showToast("Sesi login tidak ditemukan");
+    return;
+  }
+
   const kategori =
-    document.getElementById("kategori")
-    .value.trim();
+    document
+      .getElementById("kategori")
+      .value
+      .trim();
 
   const nominal =
-    document.getElementById("nominal")
-    .value;
+    document
+      .getElementById("nominal")
+      .value;
 
   const catatan =
-    document.getElementById("catatan")
-    .value.trim();
+    document
+      .getElementById("catatan")
+      .value
+      .trim();
 
   const status =
     document.getElementById("status");
 
   const tanggalInput =
-    document.getElementById("tanggal").value;
+    document
+      .getElementById("tanggal")
+      .value;
+
 
   // ================= VALIDASI =================
 
@@ -133,9 +148,8 @@ async function simpanPengeluaran(){
     return;
   }
 
-  if(
-    getNumber(nominal) <= 0
-  ){
+
+  if(getNumber(nominal) <= 0){
 
     showToast(
       "Nominal tidak valid"
@@ -144,8 +158,11 @@ async function simpanPengeluaran(){
     return;
   }
 
+
   if(
-    !document.getElementById("file").files.length &&
+    !document
+      .getElementById("file")
+      .files.length &&
     !uploadedFileId
   ){
 
@@ -156,16 +173,19 @@ async function simpanPengeluaran(){
     return;
   }
 
+
   btn.disabled = true;
   btn.innerText = "Menyimpan...";
+
 
   try{
 
     // ================= UPLOAD BUKTI =================
 
     if(
-      document.getElementById("file")
-      .files.length
+      document
+        .getElementById("file")
+        .files.length
     ){
 
       status.innerText =
@@ -175,7 +195,8 @@ async function simpanPengeluaran(){
 
     }
 
-    // ================ mode edit ========================
+
+    // ================= MODE EDIT =================
 
     const trxEdit =
       JSON.parse(
@@ -184,16 +205,10 @@ async function simpanPengeluaran(){
         ) || "null"
       );
 
-    const mode =
-      trxEdit
-        ? "updateTransaksi"
-        : "tambah_pengeluaran";
 
     // ================= DATA =================
 
     const data = {
-
-      mode,
 
       id:
         trxEdit?.id || "",
@@ -213,7 +228,10 @@ async function simpanPengeluaran(){
       catatan:
         catatan,
 
-      tanggal: tanggalInput || null,
+      tanggal:
+        datetimeLocalToISO(
+          tanggalInput
+        ),
 
       url_image:
         uploadedImageUrl,
@@ -223,34 +241,34 @@ async function simpanPengeluaran(){
 
     };
 
-    // ================= SIMPAN =================
 
-    const res = await fetch(API, {
-      method: "POST",
-      headers: {
-        "Content-Type": "text/plain;charset=utf-8"
-      },
-      body: JSON.stringify(data)
-    });
-    
     console.log(
-      "status",
-      res.status
+      "DATA PENGELUARAN:",
+      data
     );
 
-    const hasil =
-      await res.json();
 
-    const pesan = 
+    // ================= SIMPAN SUPABASE =================
+
+    const hasil =
+      await simpanPengeluaranSupabase(
+        data
+      );
+
+
+    // ================= PESAN =================
+
+    const pesan =
       "✅ Pengeluaran <b>" +
-        kategori +
-        "</b> sebesar <b>Rp " +
-        new Intl.NumberFormat(
-          "id-ID"
-        ).format(
-          getNumber(nominal)
-        ) +
-        "</b> berhasil disimpan.";
+      kategori +
+      "</b> sebesar <b>Rp " +
+      new Intl.NumberFormat(
+        "id-ID"
+      ).format(
+        getNumber(nominal)
+      ) +
+      "</b> berhasil disimpan.";
+
 
     if(hasil.ok){
 
@@ -260,6 +278,7 @@ async function simpanPengeluaran(){
       showToast(
         "Pengeluaran berhasil tersimpan"
       );
+
 
       status.innerHTML =
         "✅ Pengeluaran <b>" +
@@ -272,6 +291,7 @@ async function simpanPengeluaran(){
         ) +
         "</b> berhasil disimpan.";
 
+
       setTimeout(() => {
 
         resetForm();
@@ -282,33 +302,44 @@ async function simpanPengeluaran(){
         btn.disabled =
           false;
 
+
         sessionStorage.setItem(
           "toastMessage",
           pesan
         );
 
+
         sessionStorage.removeItem(
           "editTransaksi"
         );
 
+
+        // Hapus cache dashboard
         localStorage.removeItem(
-          "dashboard_cache_" + user.userId
+          "dashboard_cache_" +
+          user.userId
         );
 
+
+        // Hapus cache riwayat
         localStorage.removeItem(
-          "riwayat_cache_" + user.userId
+          "riwayat_cache_" +
+          user.userId
         );
+
 
         window.location.href =
           "dashboard.html";
 
       }, 800);
 
+
     }else{
 
       showToast(
+        hasil.message ||
         hasil.msg ||
-        "Gagal"
+        "Gagal menyimpan pengeluaran"
       );
 
       btn.disabled =
@@ -319,13 +350,17 @@ async function simpanPengeluaran(){
 
     }
 
+
   }catch(err){
 
-    console.error(err);
+    console.error(
+      "Simpan pengeluaran error:",
+      err
+    );
 
     showToast(
       err.message ||
-      "Error server"
+      "Gagal menyimpan pengeluaran"
     );
 
     btn.disabled =
@@ -581,47 +616,15 @@ async function uploadBukti(){
 
   console.log(base64.length);
 
-  const res = await fetch(API,{
-    method:"POST",
-    redirect:"follow",
-    headers:{
-      "Content-Type":"text/plain;charset=utf-8"
-    },
-    body: JSON.stringify({
-
+  const result = await postAPI({
     mode: "upload_file",
-
     fileName: file.name,
-
     mimeType: mimeType,
-
-    kategori:
-      document
-        .getElementById("kategori")
-        .value,
-
+    kategori: document
+      .getElementById("kategori")
+      .value,
     base64: base64
-
-
-    })
   });
-
-  console.log(
-    "base64 length:",
-    base64.length
-  );
-
-  console.log(
-    "API:",
-    API
-  );
-
-  console.log(
-    "status",
-    res.status
-  );
-
-  const result = await res.json();
 
   console.log(result);
 
@@ -662,6 +665,85 @@ function blobToBase64(blob){
     reader.readAsDataURL(blob);
 
   });
+
+}
+
+// ================= SIMPAN PENGELUARAN SUPABASE =================
+
+async function simpanPengeluaranSupabase(data){
+
+  const {
+    data: hasil,
+    error
+  } = await db.rpc(
+    "simpan_pengeluaran",
+    {
+      p_id_user:
+        data.id_user,
+
+      p_kategori:
+        data.kategori,
+
+      p_nominal:
+        data.nominal,
+
+      p_tanggal:
+        data.tanggal,
+
+      p_catatan:
+        data.catatan || null,
+
+      p_url_image:
+        data.url_image || null,
+
+      p_file_id:
+        data.fileId || null
+    }
+  );
+
+
+  if(error){
+
+    console.error(
+      "Supabase RPC error:",
+      error
+    );
+
+    throw new Error(
+      error.message ||
+      "Gagal menyimpan pengeluaran"
+    );
+
+  }
+
+
+  console.log(
+    "Hasil RPC pengeluaran:",
+    hasil
+  );
+
+
+  if(!hasil?.success){
+
+    throw new Error(
+      hasil?.message ||
+      "Pengeluaran gagal disimpan"
+    );
+
+  }
+
+
+  return hasil;
+
+}
+
+function datetimeLocalToISO(value){
+
+  if(!value){
+    return null;
+  }
+
+  return value + ":00+07:00";
 
 }
 

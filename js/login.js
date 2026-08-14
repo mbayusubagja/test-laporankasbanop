@@ -33,6 +33,10 @@ function togglePassBaru(){
     : "password";
 }
 
+function hashPassword(password) {
+  return sha256(password);
+}
+
 // ================================ validasi ==================================
 
 function validasi() {
@@ -61,120 +65,205 @@ function validasi() {
 async function login(){
 
   const error = validasi();
+
   if(error){
     status(error);
     return;
   }
 
-  const loginBtn = document.getElementById("loginBtn");
+  const loginBtn =
+    document.getElementById("loginBtn");
 
-  const noHpRaw = document.getElementById("noHp").value.trim();
-  const noHp = formatNomorHP(noHpRaw);
-  const password = document.getElementById("password").value.trim();
+  const noHpRaw =
+    document
+      .getElementById("noHp")
+      .value
+      .trim();
+
+  const noHp =
+    formatNomorHP(noHpRaw);
+
+  const password =
+    document
+      .getElementById("password")
+      .value
+      .trim();
 
   status("Sedang login...");
 
-  // 🔥 disable tombol
   loginBtn.disabled = true;
   registerBtn.disabled = true;
-
   loginBtn.innerText = "Memproses...";
 
   try{
 
-    const res = await fetch(API, {
-      method:"POST",
-      body: JSON.stringify({
-        mode:"login",
-        noHp,
-        password
-      })
-    });
+    // ================= HASH PASSWORD =================
 
-    const hasil = await res.json();
+    const passHash =
+      await hashPassword(password);
+
+
+    // ================= CARI USER =================
+
+    const {
+      data,
+      error
+    } = await db
+      .from("users")
+      .select(`
+        id_user,
+        no_hp,
+        role,
+        nama,
+        jabatan,
+        email,
+        pass_hash
+      `)
+      .eq("no_hp", noHp)
+      .maybeSingle();
+
+
+    if(error){
+
+      console.error(
+        "Login Supabase error:",
+        error
+      );
+
+      throw error;
+    }
+
+
+    // ================= USER TIDAK DITEMUKAN =================
+
+    if(!data){
+
+      status(
+        "❌ Nomor HP atau password salah"
+      );
+
+      return;
+    }
+
+
+    // ================= CEK PASSWORD =================
+
+    if(data.pass_hash !== passHash){
+
+      status(
+        "❌ Nomor HP atau password salah"
+      );
+
+      return;
+    }
+
+
+    // ================= USER BERHASIL LOGIN =================
+
+    const user = {
+
+      userId:
+        data.id_user,
+
+      noHp:
+        data.no_hp,
+
+      role:
+        data.role,
+
+      nama:
+        data.nama,
+
+      jabatan:
+        data.jabatan,
+
+      email:
+        data.email
+
+    };
+
+
+    // ================= CEK AKUN AKTIF =================
 
     const activeUserId =
-      localStorage.getItem("activeUserId");
+      localStorage.getItem(
+        "activeUserId"
+      );
 
-    if (
+
+    if(
       activeUserId &&
-      activeUserId !== hasil.user.userId
-    ) {
+      activeUserId !== user.userId
+    ){
 
       status(
         `❌ Masih ada akun lain yang aktif di browser ini.
-        Logout terlebih dahulu akun tersebut <b>dengan menonaktifkan Always Login.</b>`
+        Logout terlebih dahulu akun tersebut
+        <b>dengan menonaktifkan Always Login.</b>`
       );
 
-      loginBtn.disabled = false;
-      registerBtn.disabled = false;
-      loginBtn.innerText = "Login";
-
       return;
     }
 
-    if(!hasil.ok){
 
-      status("❌ " + hasil.message || "❌ Login gagal");
+    const currentUser =
+      JSON.parse(
+        sessionStorage.getItem("user") ||
+        localStorage.getItem("user") ||
+        "null"
+      );
 
-      // 🔥 aktifkan lagi
-      loginBtn.disabled = false;
-      registerBtn.disabled = false;
 
-      loginBtn.innerText = "Login";
-
-      return;
-    }
-
-    const currentUser = JSON.parse(
-      sessionStorage.getItem("user") ||
-      localStorage.getItem("user")
-    );
-
-    if (
+    if(
       currentUser &&
-      currentUser.userId !== hasil.user.userId
-    ) {
+      currentUser.userId !== user.userId
+    ){
 
       status(
         `❌ Masih ada akun lain yang aktif di browser ini.
-        Logout terlebih dahulu akun tersebut <b>dengan menonaktifkan Always Login.</b>`
+        Logout terlebih dahulu akun tersebut
+        <b>dengan menonaktifkan Always Login.</b>`
       );
-
-      loginBtn.disabled = false;
-      registerBtn.disabled = false;
-      loginBtn.innerText = "Login";
 
       return;
     }
+
+
+    // ================= REMEMBER LOGIN =================
 
     const keepLogin =
-      localStorage.getItem("rememberLogin") === "true";
+      localStorage.getItem(
+        "rememberLogin"
+      ) === "true";
+
 
     if(keepLogin){
 
       localStorage.setItem(
         "user",
-        JSON.stringify(hasil.user)
+        JSON.stringify(user)
       );
 
     }else{
 
       sessionStorage.setItem(
         "user",
-        JSON.stringify(hasil.user)
+        JSON.stringify(user)
       );
 
     }
 
+
+    // ================= AKUN AKTIF =================
+
     localStorage.setItem(
       "activeUserId",
-      hasil.user.userId
+      user.userId
     );
 
     localStorage.setItem(
       "activeUser",
-      JSON.stringify(hasil.user)
+      JSON.stringify(user)
     );
 
     localStorage.setItem(
@@ -182,23 +271,41 @@ async function login(){
       Date.now()
     );
 
-    status("✅ Login berhasil");
+
+    status(
+      "✅ Login berhasil"
+    );
+
 
     setTimeout(() => {
-      location.href = "dashboard.html";
+
+      location.href =
+        "dashboard.html";
+
     }, 500);
+
 
   }catch(err){
 
-    status("❌ Tidak dapat terhubung ke server");
+    console.error(
+      "Login error:",
+      err
+    );
 
-    console.error(err);
+    status(
+      "❌ Tidak dapat terhubung ke server"
+    );
 
-    // 🔥 aktifkan lagi kalau error
+  }finally{
+
     loginBtn.disabled = false;
     registerBtn.disabled = false;
-    loginBtn.innerText = "Login";
+
+    loginBtn.innerText =
+      "Login";
+
   }
+
 }
 
 
@@ -206,84 +313,181 @@ async function login(){
 async function register(){
 
   const error = validasi();
+
   if(error){
     status(error);
     return;
   }
 
-  const registerBtn = document.getElementById("registerBtn");
 
-  const noHpRaw = document.getElementById("noHp").value.trim();
-  const noHp = formatNomorHP(noHpRaw);
-  const password = document.getElementById("password").value.trim();
+  const registerBtn =
+    document.getElementById(
+      "registerBtn"
+    );
+
+
+  const noHpRaw =
+    document
+      .getElementById("noHp")
+      .value
+      .trim();
+
+
+  const noHp =
+    formatNomorHP(noHpRaw);
+
+
+  const password =
+    document
+      .getElementById("password")
+      .value
+      .trim();
+
 
   if(password.length < 6){
 
-    alert(
+    status(
       "Password minimal 6 karakter"
     );
 
     return;
   }
 
-  status("Sedang register...");
 
-  // 🔥 disable tombol
+  status(
+    "Sedang register..."
+  );
+
+
   registerBtn.disabled = true;
   loginBtn.disabled = true;
 
-  registerBtn.innerText = "Memproses...";
+  registerBtn.innerText =
+    "Memproses...";
+
 
   try{
 
-    const res = await fetch(API, {
-      method:"POST",
-      body: JSON.stringify({
-        mode:"register",
-        noHp,
-        password
+    // ================= HASH PASSWORD =================
+
+    const passHash =
+      await hashPassword(password);
+
+
+    // ================= INSERT USER =================
+
+    const {
+      data,
+      error: insertError
+    } = await db
+
+      .from("users")
+
+      .insert({
+
+        no_hp:
+          noHp,
+
+        pass_hash:
+          passHash,
+
+        role:
+          "user",
+
+        created_at:
+          new Date().toISOString()
+
       })
-    });
 
-    const hasil = await res.json();
+      .select(`
+        id_user,
+        no_hp,
+        role,
+        nama,
+        jabatan,
+        email
+      `)
+      
+      .single();
 
-    if(!hasil.ok){
 
-      status(
-        hasil.message
-        ? "❌ " + hasil.message
-        : "❌ Login gagal"
+    // ================= ERROR =================
+
+    if(insertError){
+
+      console.error(
+        "Register Supabase error:",
+        insertError
       );
 
-      // 🔥 enable lagi kalau gagal
-      registerBtn.disabled = false;
-      loginBtn.disabled = false;
 
-      registerBtn.innerText = "Register";
+      // nomor HP sudah digunakan
+      if(
+        insertError.code === "23505"
+      ){
 
-      return;
+        status(
+          "❌ Nomor HP sudah terdaftar"
+        );
+
+        return;
+      }
+
+
+      throw insertError;
     }
 
-    status("✅ Register berhasil");
 
-    // 🔥 enable lagi setelah sukses
-    registerBtn.disabled = false;
-    loginBtn.disabled = false;
+    // ================= BERHASIL =================
 
-    registerBtn.innerText = "Register";
+    console.log(
+      "User berhasil dibuat:",
+      data
+    );
+
+
+    status(
+      "✅ Register berhasil"
+    );
+
+
+    document.getElementById(
+      "noHp"
+    ).value = "";
+
+
+    document.getElementById(
+      "password"
+    ).value = "";
+
 
   }catch(err){
 
-    status("❌ Tidak dapat terhubung ke server");
+    console.error(
+      "Register error:",
+      err
+    );
 
-    console.error(err);
 
-    // 🔥 enable lagi kalau error
+    status(
+      "❌ " +
+      (
+        err.message ||
+        "Gagal melakukan register"
+      )
+    );
+
+
+  }finally{
+
     registerBtn.disabled = false;
     loginBtn.disabled = false;
 
-    registerBtn.innerText = "Register";
+    registerBtn.innerText =
+      "Register";
+
   }
+
 }
 
 
@@ -336,48 +540,115 @@ function tutupModalLupaPassword(){
 async function kirimOtpReset(){
 
   let gmail =
-    document.getElementById(
-      "gmailReset"
-    ).value;
+    document.getElementById("gmailReset")
+      .value
+      .trim()
+      .toLowerCase();
 
-  gmail = String(gmail)
-    .trim()
-    .toLowerCase();
-  
   if(!gmail){
-
     alert("Masukkan Gmail");
-
     return;
-
   }
 
-  const res =
-    await fetch(API,{
+  try {
 
-      method:"POST",
+    // ==========================================
+    // CARI USER DI SUPABASE
+    // ==========================================
 
-      body:JSON.stringify({
+    const {
+      data: user,
+      error
+    } = await db
+      .from("users")
+      .select("id_user, email")
+      .eq("email", gmail)
+      .maybeSingle();
 
-        mode:"kirimOtpReset",
+    if(error){
 
+      console.error(
+        "Cari user:",
+        error
+      );
+
+      alert(
+        "Terjadi kesalahan saat mencari akun"
+      );
+
+      return;
+    }
+
+    if(!user){
+
+      alert(
+        "Email tidak ditemukan"
+      );
+
+      return;
+    }
+
+
+    // ==========================================
+    // SIMPAN USER YANG AKAN DI-RESET
+    // ==========================================
+
+    sessionStorage.setItem(
+      "resetUserId",
+      user.id_user
+    );
+
+    sessionStorage.setItem(
+      "resetEmail",
+      gmail
+    );
+
+    // reset status OTP lama
+    sessionStorage.removeItem(
+      "resetOtpVerified"
+    );
+
+
+    // ==========================================
+    // KIRIM OTP VIA APPS SCRIPT
+    // ==========================================
+
+    const data = await postAPI({
+
+      mode:
+        "kirimOtpReset",
+
+      gmail:
         gmail
-
-      })
 
     });
 
-  const data =
-    await res.json();
 
-  alert(data.message);
+    alert(
+      data.message ||
+      data.msg ||
+      "OTP telah dikirim"
+    );
 
-  if(data.success){
 
-    document.getElementById(
-      "stepOtp"
-    ).style.display =
-    "block";
+    if(data.success){
+
+      document.getElementById(
+        "stepOtp"
+      ).style.display = "block";
+
+    }
+
+  } catch(err){
+
+    console.error(
+      "Kirim OTP:",
+      err
+    );
+
+    alert(
+      "Tidak dapat terhubung ke server"
+    );
 
   }
 
@@ -387,50 +658,105 @@ async function kirimOtpReset(){
 
 async function verifikasiOtpReset(){
 
-  let gmail =
-    document.getElementById(
-      "gmailReset"
-    ).value;
+  const gmail =
+    sessionStorage.getItem(
+      "resetEmail"
+    );
 
-  gmail = String(gmail)
-    .trim()
-    .toLowerCase();
+  const userId =
+    sessionStorage.getItem(
+      "resetUserId"
+    );
 
   const otp =
     document.getElementById(
       "otpReset"
-    ).value;
+    ).value
+    .trim();
 
-  const res =
-    await fetch(API,{
 
-      method:"POST",
+  if(!gmail || !userId){
 
-      body:JSON.stringify({
+    alert(
+      "Sesi reset password tidak ditemukan. Silakan ulangi."
+    );
 
-        mode:"verifikasiOtpReset",
+    return;
+  }
 
+
+  if(!otp){
+
+    alert(
+      "Masukkan kode OTP"
+    );
+
+    return;
+  }
+
+
+  try {
+
+    const data = await postAPI({
+
+      mode:
+        "verifikasiOtpReset",
+
+      gmail:
         gmail,
 
+      otp:
         otp
-
-      })
 
     });
 
-  const data =
-    await res.json();
 
-  if(data.ok){
+    if(data.ok){
 
-    document.getElementById(
-      "stepPassword"
-    ).style.display =
-    "block";
+      // ======================================
+      // OTP VALID
+      // ======================================
 
-  }else{
+      sessionStorage.setItem(
+        "resetOtpVerified",
+        "true"
+      );
 
-    alert(data.msg);
+
+      // tampilkan form password baru
+      document.getElementById(
+        "stepPassword"
+      ).style.display = "block";
+
+
+      // optional: sembunyikan OTP
+      // document.getElementById("stepOtp").style.display = "none";
+
+
+    }else{
+
+      // kalau OTP salah
+      sessionStorage.removeItem(
+        "resetOtpVerified"
+      );
+
+      alert(
+        data.msg ||
+        "OTP tidak valid"
+      );
+
+    }
+
+  } catch(err){
+
+    console.error(
+      "Verifikasi OTP:",
+      err
+    );
+
+    alert(
+      "Gagal memverifikasi OTP"
+    );
 
   }
 
@@ -440,19 +766,50 @@ async function verifikasiOtpReset(){
 
 async function simpanPasswordBaru(){
 
-  let gmail =
-    document.getElementById(
-      "gmailReset"
-    ).value;
+  const userId =
+    sessionStorage.getItem(
+      "resetUserId"
+    );
 
-  gmail = String(gmail)
-    .trim()
-    .toLowerCase();
+  const otpVerified =
+    sessionStorage.getItem(
+      "resetOtpVerified"
+    );
+
+
+  // ==========================================
+  // CEK VERIFIKASI OTP
+  // ==========================================
+
+  if(!userId){
+
+    alert(
+      "Data akun reset tidak ditemukan. Silakan ulangi proses lupa password."
+    );
+
+    return;
+  }
+
+
+  if(otpVerified !== "true"){
+
+    alert(
+      "Silakan verifikasi OTP terlebih dahulu"
+    );
+
+    return;
+  }
+
+
+  // ==========================================
+  // PASSWORD BARU
+  // ==========================================
 
   const password =
     document.getElementById(
       "passwordBaru"
-    ).value;
+    ).value.trim();
+
 
   if(password.length < 6){
 
@@ -463,31 +820,96 @@ async function simpanPasswordBaru(){
     return;
   }
 
-  const res =
-    await fetch(API,{
 
-      method:"POST",
+  try {
 
-      body:JSON.stringify({
+    // ========================================
+    // HASH PASSWORD
+    // ========================================
 
-        mode:"resetPassword",
-
-        gmail,
-
+    const passHash =
+      await hashPassword(
         password
+      );
+
+
+    // ========================================
+    // UPDATE SUPABASE
+    // ========================================
+
+    const {
+      error
+    } = await db
+
+      .from("users")
+
+      .update({
+
+        pass_hash:
+          passHash
 
       })
 
-    });
+      .eq(
+        "id_user",
+        userId
+      );
 
-  const data =
-    await res.json();
 
-  alert(data.msg);
+    if(error){
 
-  if(data.ok){
+      console.error(
+        "Update password:",
+        error
+      );
+
+      alert(
+        "Gagal mengubah password"
+      );
+
+      return;
+    }
+
+
+    // ========================================
+    // BERHASIL
+    // ========================================
+
+    alert(
+      "Password berhasil diubah"
+    );
+
+
+    // ========================================
+    // BERSIHKAN SESSION RESET
+    // ========================================
+
+    sessionStorage.removeItem(
+      "resetUserId"
+    );
+
+    sessionStorage.removeItem(
+      "resetEmail"
+    );
+
+    sessionStorage.removeItem(
+      "resetOtpVerified"
+    );
+
 
     tutupModalLupaPassword();
+
+
+  } catch(err){
+
+    console.error(
+      "Reset password:",
+      err
+    );
+
+    alert(
+      "Terjadi kesalahan saat mengubah password"
+    );
 
   }
 

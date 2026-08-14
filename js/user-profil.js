@@ -109,96 +109,79 @@ async function getProfil(force = false){
 
   const cache = getProfilCache();
 
-
   // ============================
   // CACHE ADA
   // ============================
 
   if(cache && cache.data && !force){
 
-    // langsung tampilkan cache
     renderProfil(cache.data);
-
 
     const umur =
       Date.now() - cache.time;
 
-
-    // cache masih fresh
     if(umur < PROFIL_CACHE_TIME){
-
       return;
     }
-
-    // cache lama:
-    // tetap tampilkan,
-    // tetapi lanjut fetch background
   }
-
 
   // ============================
   // BELUM ADA CACHE
   // ============================
 
   if(!cache || !cache.data){
-
     showProfilSkeleton();
   }
 
-
   // ============================
-  // FETCH API
+  // FETCH SUPABASE
   // ============================
 
   try{
 
-    const res = await fetch(
-      API +
-      "?mode=getProfil&id_user=" +
-      encodeURIComponent(user.userId)
-    );
+    const {
+      data,
+      error
+    } = await db
+      .from("users")
+      .select(`
+        nama,
+        jabatan,
+        email
+      `)
+      .eq(
+        "id_user",
+        user.userId
+      )
+      .maybeSingle();
 
-
-    if(!res.ok){
-
-      throw new Error(
-        "HTTP " + res.status
-      );
-
+    if(error){
+      throw error;
     }
 
-
-    const r = await res.json();
-
-
-    if(!r.ok){
-
+    if(!data){
       throw new Error(
-        r.message ||
-        "Gagal memuat profil"
+        "User tidak ditemukan"
       );
-
     }
 
+    const profil = {
+      nama: data.nama,
+      jabatan: data.jabatan,
+      gmail: data.email
+    };
 
-    // simpan cache
-    saveProfilCache(r.data);
+    saveProfilCache(profil);
 
-
-    // render data terbaru
-    renderProfil(r.data);
-
+    renderProfil(profil);
 
   }catch(err){
 
     console.error(
-      "Profil error:",
+      "Profil Supabase error:",
       err
     );
 
-
-    // kalau ada cache,
-    // jangan ubah tampilan
     if(cache && cache.data){
 
       renderProfil(
@@ -222,9 +205,7 @@ async function getProfil(force = false){
       ).innerText =
         "-";
     }
-
   }
-
 }
 
 

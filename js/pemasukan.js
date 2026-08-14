@@ -10,6 +10,54 @@ function formatDateTimeLocal(date){
   return `${yyyy}-${mm}-${dd}T${hh}:${min}`;
 }
 
+async function tampilkanGambarLama(fileId){
+
+  if(!fileId){
+    return;
+  }
+
+  const preview =
+    document.getElementById("preview");
+
+  try{
+
+    const result =
+      await getAPI({
+        mode: "image",
+        id: fileId
+      });
+
+    if(
+      result &&
+      result.base64
+    ){
+
+      preview.src =
+        result.base64;
+
+      console.log(
+        "Gambar lama berhasil dimuat"
+      );
+
+    }else{
+
+      console.warn(
+        "Gambar lama tidak tersedia"
+      );
+
+    }
+
+  }catch(err){
+
+    console.error(
+      "Gagal mengambil gambar lama:",
+      err
+    );
+
+  }
+
+}
+
 // ======================== tanggal default hari ini ============================
 document.addEventListener("DOMContentLoaded", function(){
 
@@ -25,25 +73,28 @@ document.addEventListener("DOMContentLoaded", function(){
   // MODE EDIT
   if(trx){
 
-  uploadedImageUrl = trx.url_image || "";
-  uploadedFileId = trx.fileId || "";
+  // =========================================
+  // DATA BUKTI LAMA
+  // =========================================
 
-  const preview =
-    document.getElementById("preview");
+  uploadedImageUrl =
+    trx.url_image || "";
 
-    if(trx.fileId){
+  uploadedFileId =
+    trx.file_id || "";
 
-      document.getElementById("preview").src =
-        "https://drive.google.com/thumbnail?id=" +
-        trx.fileId +
-        "&sz=w1000";
 
-    console.log(
-      "preview src",
-      document.getElementById("preview").src
+  // =========================================
+  // TAMPILKAN GAMBAR LAMA
+  // =========================================
+
+  if(uploadedFileId){
+
+    tampilkanGambarLama(
+      uploadedFileId
     );
 
-    }
+  }
 
 
 
@@ -76,11 +127,9 @@ document.addEventListener("DOMContentLoaded", function(){
 
     // tanggal edit
     inputTanggal.value =
-      formatDateTimeLocal(
-        new Date(
-          Number(trx.timestamp)
-        )
-      );
+    formatSupabaseDateTime(
+      trx.timestamp
+    );
 
     return;
   }
@@ -224,7 +273,7 @@ async function simpanPemasukan(){
       catatan:
         catatan,
       
-      tanggal: tanggalInput || null,
+      tanggal: datetimeLocalToISO(tanggalInput),
 
       url_image:
         uploadedImageUrl,
@@ -236,21 +285,8 @@ async function simpanPemasukan(){
 
     // ================= SIMPAN =================
 
-    const res = await fetch(API, {
-      method: "POST",
-      headers: {
-        "Content-Type": "text/plain;charset=utf-8"
-      },
-      body: JSON.stringify(data)
-    });
-    
-    console.log(
-      "status",
-      res.status
-    );
-
     const hasil =
-      await res.json();
+      await simpanPemasukanSupabase(data);
 
     const pesan =
       "✅ Pemasukan dari <b>" +
@@ -261,7 +297,7 @@ async function simpanPemasukan(){
       ) +
       "</b> berhasil disimpan.";
 
-    if(hasil.ok){
+    if(hasil.success){
 
       btn.innerText =
         "Berhasil ✔";
@@ -316,7 +352,7 @@ async function simpanPemasukan(){
     }else{
 
       showToast(
-        hasil.msg ||
+        hasil.message ||
         "Gagal"
       );
 
@@ -584,53 +620,21 @@ async function uploadBukti(){
 
   console.log(base64.length);
 
-  const res = await fetch(API,{
-    method:"POST",
-    redirect:"follow",
-    headers:{
-      "Content-Type":"text/plain;charset=utf-8"
-    },
-    body: JSON.stringify({
-
+  const result = await postAPI({
     mode: "upload_file",
-
     fileName: file.name,
-
     mimeType: mimeType,
-
-    kategori:
-      document
-        .getElementById("kategori")
-        .value,
-
+    kategori: document
+      .getElementById("kategori")
+      .value,
     base64: base64
-
-
-    })
   });
-
-  console.log(
-    "base64 length:",
-    base64.length
-  );
-
-  console.log(
-    "API:",
-    API
-  );
-
-  console.log(
-    "status",
-    res.status
-  );
-
-  const result = await res.json();
 
   console.log(result);
 
   if(!result.ok){
     throw new Error(
-      result.msg || "Upload gagal"
+      result.message || "Upload gagal"
     );
   }
 
@@ -679,5 +683,176 @@ function resetForm(){
   uploadedFileId = "";
 }
 
+async function simpanPemasukanSupabase(data){
+
+  // ==================================================
+  // MODE EDIT
+  // ==================================================
+
+  if(
+    data.mode === "updateTransaksi"
+  ){
+
+    if(!data.id){
+
+      throw new Error(
+        "ID transaksi tidak ditemukan"
+      );
+
+    }
 
 
+    const { data: hasil, error } =
+      await db
+        .from("transactions")
+        .update({
+
+          kategori:
+            data.kategori,
+
+          nominal:
+            data.nominal,
+
+          tanggal:
+            data.tanggal,
+
+          catatan:
+            data.catatan || null,
+
+          url_image:
+            data.url_image || null,
+
+          file_id:
+            data.fileId || null
+
+        })
+        .eq(
+          "id",
+          data.id
+        )
+        .eq(
+          "id_user",
+          data.id_user
+        )
+        .select()
+        .single();
+
+
+    if(error){
+
+      console.error(
+        "Update transaksi error:",
+        error
+      );
+
+      throw new Error(
+        error.message ||
+        "Gagal mengupdate transaksi"
+      );
+
+    }
+
+
+    console.log(
+      "Transaksi berhasil diupdate:",
+      hasil
+    );
+
+
+    return {
+      success: true,
+      data: hasil
+    };
+
+  }
+
+
+  // ==================================================
+  // MODE TAMBAH
+  // ==================================================
+
+  const { data: hasil, error } =
+    await db.rpc(
+      "simpan_pemasukan",
+      {
+        p_id_user:
+          data.id_user,
+
+        p_kategori:
+          data.kategori,
+
+        p_nominal:
+          data.nominal,
+
+        p_tanggal:
+          data.tanggal,
+
+        p_catatan:
+          data.catatan || null,
+
+        p_url_image:
+          data.url_image || null,
+
+        p_file_id:
+          data.fileId || null
+      }
+    );
+
+
+  if(error){
+
+    console.error(
+      "Supabase RPC error:",
+      error
+    );
+
+    throw new Error(
+      error.message ||
+      "Gagal menyimpan pemasukan"
+    );
+
+  }
+
+
+  console.log(
+    "Hasil RPC:",
+    hasil
+  );
+
+
+  if(!hasil?.success){
+
+    throw new Error(
+      hasil?.message ||
+      "Pemasukan gagal disimpan"
+    );
+
+  }
+
+
+  return hasil;
+
+}
+
+
+
+function datetimeLocalToISO(value){
+
+  if(!value){
+    return null;
+  }
+
+  return value + ":00+07:00";
+
+}
+
+function formatSupabaseDateTime(value){
+
+  if(!value){
+    return formatDateTimeLocal(new Date());
+  }
+
+  const date = new Date(value);
+
+  return formatDateTimeLocal(date);
+}
