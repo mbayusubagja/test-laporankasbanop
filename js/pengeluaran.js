@@ -10,6 +10,54 @@ function formatDateTimeLocal(date){
   return `${yyyy}-${mm}-${dd}T${hh}:${min}`;
 }
 
+async function tampilkanGambarLama(fileId){
+
+  if(!fileId){
+    return;
+  }
+
+  const preview =
+    document.getElementById("preview");
+
+  try{
+
+    const result =
+      await getAPI({
+        mode: "image",
+        id: fileId
+      });
+
+    if(
+      result &&
+      result.base64
+    ){
+
+      preview.src =
+        result.base64;
+
+      console.log(
+        "Gambar lama berhasil dimuat"
+      );
+
+    }else{
+
+      console.warn(
+        "Gambar lama tidak tersedia"
+      );
+
+    }
+
+  }catch(err){
+
+    console.error(
+      "Gagal mengambil gambar lama:",
+      err
+    );
+
+  }
+
+}
+
 // ======================== tanggal default hari ini ============================
 document.addEventListener("DOMContentLoaded", function(){
 
@@ -26,19 +74,15 @@ document.addEventListener("DOMContentLoaded", function(){
   if(trx){
 
   uploadedImageUrl = trx.url_image || "";
-  uploadedFileId = trx.fileId || "";
+  uploadedFileId = trx.file_id || "";
 
-  const preview =
-    document.getElementById("preview");
+  if(uploadedFileId){
 
-    if(trx.fileId){
+    tampilkanGambarLama(
+      uploadedFileId
+    );
 
-      document.getElementById("preview").src =
-        "https://drive.google.com/thumbnail?id=" +
-        trx.fileId +
-        "&sz=w1000";
-
-    }
+  }
 
     // kategori
     const select =
@@ -69,11 +113,9 @@ document.addEventListener("DOMContentLoaded", function(){
 
     // tanggal edit
     inputTanggal.value =
-      formatDateTimeLocal(
-        new Date(
-          Number(trx.timestamp)
-        )
-      );
+    formatSupabaseDateTime(
+      trx.timestamp
+    );
 
     return;
   }
@@ -205,10 +247,17 @@ async function simpanPengeluaran(){
         ) || "null"
       );
 
+    const mode =
+      trxEdit
+        ? "updateTransaksi"
+        : "tambah_pengeluaran";
+
 
     // ================= DATA =================
 
     const data = {
+
+      mode,
 
       id:
         trxEdit?.id || "",
@@ -270,7 +319,7 @@ async function simpanPengeluaran(){
       "</b> berhasil disimpan.";
 
 
-    if(hasil.ok){
+    if(hasil.success){
 
       btn.innerText =
         "Berhasil ✔";
@@ -672,6 +721,89 @@ function blobToBase64(blob){
 
 async function simpanPengeluaranSupabase(data){
 
+  // ==================================================
+  // MODE EDIT
+  // ==================================================
+
+  if(
+    data.mode === "updateTransaksi"
+  ){
+
+    if(!data.id){
+
+      throw new Error(
+        "ID transaksi tidak ditemukan"
+      );
+
+    }
+
+
+    const { data: hasil, error } =
+      await db
+        .from("transactions")
+        .update({
+
+          kategori:
+            data.kategori,
+
+          nominal:
+            data.nominal,
+
+          tanggal:
+            data.tanggal,
+
+          catatan:
+            data.catatan || null,
+
+          url_image:
+            data.url_image || null,
+
+          file_id:
+            data.fileId || null
+
+        })
+        .eq(
+          "id",
+          data.id
+        )
+        .eq(
+          "id_user",
+          data.id_user
+        )
+        .select()
+        .single();
+
+
+    if(error){
+
+      console.error(
+        "Update transaksi error:",
+        error
+      );
+
+      throw new Error(
+        error.message ||
+        "Gagal mengupdate transaksi"
+      );
+
+    }
+
+
+    console.log(
+      "Transaksi berhasil diupdate:",
+      hasil
+    );
+
+
+    return {
+      success: true,
+      data: hasil
+    };
+
+  }
+
+  // ========== MODE TAMBAH ===============
+
   const {
     data: hasil,
     error
@@ -745,6 +877,17 @@ function datetimeLocalToISO(value){
 
   return value + ":00+07:00";
 
+}
+
+function formatSupabaseDateTime(value){
+
+  if(!value){
+    return formatDateTimeLocal(new Date());
+  }
+
+  const date = new Date(value);
+
+  return formatDateTimeLocal(date);
 }
 
 
