@@ -216,8 +216,15 @@ async function simpanPemasukan(){
     return;
   }
 
-  btn.disabled = true;
-  btn.innerText = "Menyimpan...";
+showLoading("Menyiapkan file...");
+
+updateUploadProgress(
+    0,
+    "Menyiapkan file..."
+);
+
+btn.disabled = true;
+btn.innerText = "Menyimpan...";
 
   try{
 
@@ -285,6 +292,11 @@ async function simpanPemasukan(){
 
     // ================= SIMPAN =================
 
+    updateUploadProgress(
+        96,
+        "Menyimpan transaksi..."
+    );
+
     const hasil =
       await simpanPemasukanSupabase(data);
 
@@ -298,6 +310,11 @@ async function simpanPemasukan(){
       "</b> berhasil disimpan.";
 
     if(hasil.success){
+
+      updateUploadProgress(
+          100,
+          "Transaksi berhasil disimpan ✓"
+      );
 
       btn.innerText =
         "Berhasil ✔";
@@ -379,6 +396,9 @@ async function simpanPemasukan(){
     btn.innerText =
       "Simpan";
 
+  } finally {
+
+    hideLoading();
   }
 
 }
@@ -565,7 +585,7 @@ document.getElementById("file")
 
 });
 
-// ================= upload file ==================
+// ================= UPLOAD FILE =================
 
 async function uploadBukti(){
 
@@ -577,22 +597,23 @@ async function uploadBukti(){
     return null;
   }
 
-  // VALIDASI TIPE FILE
+
+  // ================= VALIDASI =================
 
   const allowedTypes = [
 
     "image/jpeg",
-
     "image/png",
-
     "image/webp",
-
     "application/pdf"
 
   ];
 
+
   if(
-    !allowedTypes.includes(file.type)
+    !allowedTypes.includes(
+      file.type
+    )
   ){
 
     throw new Error(
@@ -601,48 +622,154 @@ async function uploadBukti(){
 
   }
 
-  let uploadFile = file;
+
+  // ================= 0% =================
+
+  updateUploadProgress(
+    0,
+    "Menyiapkan file..."
+  );
+
+
+  let uploadFile =
+    file;
 
   let mimeType =
-  file.type;
+    file.type;
 
-  if(file.type.startsWith("image/")){
+
+  // ================= KOMPRES =================
+
+  if(
+    file.type.startsWith("image/")
+  ){
+
+    updateUploadProgress(
+      10,
+      "Mengompres gambar..."
+    );
+
 
     uploadFile =
       await compressImage(file);
 
+
     mimeType =
       "image/jpeg";
+
+
+    updateUploadProgress(
+      25,
+      "Gambar berhasil dikompres..."
+    );
+
   }
+
+
+  // ================= BASE64 =================
+
+  updateUploadProgress(
+    30,
+    "Membaca file..."
+  );
+
 
   const base64 =
-    await blobToBase64(uploadFile);
-
-  console.log(base64.length);
-
-  const result = await postAPI({
-    mode: "upload_file",
-    fileName: file.name,
-    mimeType: mimeType,
-    kategori: document
-      .getElementById("kategori")
-      .value,
-    base64: base64
-  });
-
-  console.log(result);
-
-  if(!result.ok){
-    throw new Error(
-      result.message || "Upload gagal"
+    await blobToBase64(
+      uploadFile
     );
+
+
+  updateUploadProgress(
+    45,
+    "File siap diupload..."
+  );
+
+
+  // ================= UPLOAD =================
+
+  // ==============================
+  // MULAI UPLOAD
+  // ==============================
+
+  startProgressAnimation(
+      50,
+      90
+  );
+
+
+  const result =
+      await postAPI({
+
+          mode:
+              "upload_file",
+
+          fileName:
+              file.name,
+
+          mimeType:
+              mimeType,
+
+          kategori:
+              document
+                  .getElementById(
+                      "kategori"
+                  )
+                  .value,
+
+          base64:
+              base64
+
+      });
+
+
+  // ==============================
+  // SERVER SUDAH MERESPON
+  // ==============================
+
+  stopProgressAnimation();
+
+
+  updateUploadProgress(
+      95,
+      "Upload selesai..."
+  );
+
+
+  // ================= HASIL =================
+
+  console.log(
+    "Hasil upload:",
+    result
+  );
+
+
+  if(
+    !result.ok
+  ){
+
+    throw new Error(
+      result.message ||
+      "Upload gagal"
+    );
+
   }
+
+
+  // ================= SELESAI =================
+
+  updateUploadProgress(
+    95,
+    "Upload selesai..."
+  );
+
 
   uploadedImageUrl =
     result.url;
 
   uploadedFileId =
     result.fileId;
+
 
   return result;
 

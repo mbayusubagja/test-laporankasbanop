@@ -2470,22 +2470,19 @@ function showTab(
 // DOWNLOAD PDF
 // ============================================================
 
-async function handleDownloadPDF(
-  btn
-) {
+async function handleDownloadPDF(btn) {
 
-  btn.disabled =
-    true;
+  // ==============================
+  // MULAI LOADING
+  // ==============================
 
+  showLoading(
+    "Menyiapkan laporan..."
+  );
 
-  const oldText =
-    btn.innerHTML;
-
-
-  updateProgressButton(
-    btn,
-    0,
-    "Menyiapkan..."
+  updateUploadProgress(
+    5,
+    "Menyiapkan laporan..."
   );
 
 
@@ -2495,7 +2492,6 @@ async function handleDownloadPDF(
       document.getElementById(
         "waktuAwal"
       ).value;
-
 
     const waktuAkhir =
       document.getElementById(
@@ -2508,6 +2504,8 @@ async function handleDownloadPDF(
       !waktuAkhir
     ) {
 
+      hideLoading();
+
       alert(
         "Silakan pilih waktu awal dan waktu akhir"
       );
@@ -2515,6 +2513,12 @@ async function handleDownloadPDF(
       return;
 
     }
+
+
+    updateUploadProgress(
+      15,
+      "Memeriksa periode laporan..."
+    );
 
 
     const start =
@@ -2533,6 +2537,8 @@ async function handleDownloadPDF(
       !end
     ) {
 
+      hideLoading();
+
       alert(
         "Format waktu tidak valid"
       );
@@ -2546,6 +2552,8 @@ async function handleDownloadPDF(
       start > end
     ) {
 
+      hideLoading();
+
       alert(
         "Waktu awal tidak boleh lebih besar dari waktu akhir"
       );
@@ -2555,16 +2563,47 @@ async function handleDownloadPDF(
     }
 
 
+    // ==============================
+    // DOWNLOAD / BUAT PDF
+    // ==============================
+
+    updateUploadProgress(
+      30,
+      "Mengambil data transaksi..."
+    );
+
+
     await downloadLaporanPDF(
       waktuAwal,
       waktuAkhir,
-      btn
+    );
+
+
+    updateUploadProgress(
+      100,
+      "Laporan berhasil dibuat"
+    );
+
+
+    // beri waktu supaya user melihat 100%
+    await new Promise(
+      resolve =>
+        setTimeout(
+          resolve,
+          500
+        )
     );
 
 
   } catch (err) {
 
-    console.error(err);
+    console.error(
+      "Download PDF:",
+      err
+    );
+
+
+    hideLoading();
 
 
     alert(
@@ -2573,23 +2612,16 @@ async function handleDownloadPDF(
     );
 
 
-  } finally {
-
-    btn.disabled =
-      false;
-
-
-    setTimeout(
-      () => {
-
-        btn.innerHTML =
-          oldText;
-
-      },
-      1000
-    );
+    return;
 
   }
+
+
+  // ==============================
+  // SELESAI
+  // ==============================
+
+  hideLoading();
 
 }
 
@@ -2637,82 +2669,6 @@ function parseDatetimeLocal(
     `${tahun}-${String(bulan).padStart(2, "0")}-${String(hari).padStart(2, "0")}` +
     `T${String(jam).padStart(2, "0")}:${String(menit).padStart(2, "0")}:00+07:00`
   );
-
-}
-
-
-// ============================================================
-// PROGRESS BUTTON
-// ============================================================
-
-function updateProgressButton(
-  btn,
-  persen,
-  teks
-) {
-
-  if (!btn) {
-    return;
-  }
-
-
-  const progress =
-    Math.min(
-      100,
-      Math.max(
-        0,
-        persen
-      )
-    );
-
-
-  btn.innerHTML = `
-
-    <div
-      style="
-        position:relative;
-        width:100%;
-        height:22px;
-        overflow:hidden;
-        border-radius:6px;
-        background:rgba(255,255,255,0.25);
-      "
-    >
-
-      <div
-        style="
-          position:absolute;
-          left:0;
-          top:0;
-          height:100%;
-          width:${progress}%;
-          background:rgba(255,255,255,0.35);
-          transition:width .2s ease;
-        "
-      ></div>
-
-
-      <div
-        style="
-          position:absolute;
-          inset:0;
-          display:flex;
-          align-items:center;
-          justify-content:center;
-          font-size:12px;
-          font-weight:600;
-          white-space:nowrap;
-        "
-      >
-
-        ${teks}
-        ${progress}%
-
-      </div>
-
-    </div>
-
-  `;
 
 }
 

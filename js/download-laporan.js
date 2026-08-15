@@ -360,8 +360,7 @@ function getImageSize(base64) {
 
 async function downloadLaporanPDF(
   waktuAwal,
-  waktuAkhir,
-  btn = null
+  waktuAkhir
 ) {
 
   // ==============================================================
@@ -440,15 +439,14 @@ async function downloadLaporanPDF(
   // PROGRESS
   // ==============================================================
 
-  if (btn) {
+  
 
-    updateProgressButton(
-      btn,
+    updateUploadProgress(
       5,
       "Mengambil transaksi..."
     );
 
-  }
+  
 
 
   // ==============================================================
@@ -534,15 +532,14 @@ async function downloadLaporanPDF(
   // PROFIL DARI SUPABASE
   // ==============================================================
 
-  if (btn) {
+  
 
-    updateProgressButton(
-      btn,
+    updateUploadProgress(
       8,
       "Mengambil profil..."
     );
 
-  }
+  
 
   let namaUser = "-";
   let jabatanUser = "-";
@@ -740,7 +737,7 @@ async function downloadLaporanPDF(
 
     // PROGRESS
 
-    if (btn) {
+    
 
       const selesai =
         Math.min(
@@ -756,13 +753,12 @@ async function downloadLaporanPDF(
             )
           : 0;
 
-      updateProgressButton(
-        btn,
+      updateUploadProgress(
         persen,
         `Lampiran ${selesai}/${totalLampiran}`
       );
 
-    }
+    
 
   }
 
@@ -771,15 +767,14 @@ async function downloadLaporanPDF(
   // MEMBUAT PDF
   // ==============================================================
 
-  if (btn) {
+  
 
-    updateProgressButton(
-      btn,
+    updateUploadProgress(
       80,
       "Membuat PDF..."
     );
 
-  }
+  
 
 
   // ==============================================================
@@ -1452,15 +1447,14 @@ async function downloadLaporanPDF(
   // SIMPAN PDF
   // ==============================================================
 
-  if (btn) {
+  
 
-    updateProgressButton(
-      btn,
+    updateUploadProgress(
       95,
       "Menyimpan PDF..."
     );
 
-  }
+  
 
 
   await new Promise(
@@ -1489,14 +1483,13 @@ async function downloadLaporanPDF(
   // SELESAI
   // ==============================================================
 
-  if (btn) {
+  
 
-    updateProgressButton(
-      btn,
+    updateUploadProgress(
       100,
       "Selesai"
     );
 
-  }
+  
 
 }

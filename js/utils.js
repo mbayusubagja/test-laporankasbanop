@@ -65,3 +65,253 @@ function toggleMenu() {
 function clearEditMode(){
   sessionStorage.removeItem("editTransaksi");
 }
+
+// ==============================
+// LOADING
+// ==============================
+
+function showLoading(
+    text = "Mohon tunggu..."
+) {
+
+    const loading =
+        document.getElementById(
+            "loadingProses"
+        );
+
+    const title =
+        document.getElementById(
+            "loadingTitle"
+        );
+
+    const loadingText =
+        document.getElementById(
+            "loadingText"
+        );
+
+    const progressBar =
+        document.getElementById(
+            "loadingProgressBar"
+        );
+
+    const percent =
+        document.getElementById(
+            "loadingPercent"
+        );
+
+
+    if (loading) {
+
+        loading.classList.remove(
+            "hidden"
+        );
+
+    }
+
+
+    if (title) {
+
+        title.innerText =
+            "Memproses file...";
+
+    }
+
+
+    if (loadingText) {
+
+        loadingText.innerText =
+            text;
+
+    }
+
+
+    if (progressBar) {
+
+        progressBar.style.width =
+            "0%";
+
+    }
+
+
+    if (percent) {
+
+        percent.innerText =
+            "0%";
+
+    }
+
+}
+
+
+// ==============================
+// UPDATE PROGRESS
+// ==============================
+
+function updateUploadProgress(
+    persen,
+    teks = "Mohon tunggu..."
+) {
+
+    persen = Math.round(
+        Math.max(
+            0,
+            Math.min(
+                100,
+                persen
+            )
+        )
+    );
+
+    const loadingText =
+        document.getElementById(
+            "loadingText"
+        );
+
+    const loadingPercent =
+        document.getElementById(
+            "loadingPercent"
+        );
+
+    const loadingBar =
+        document.getElementById(
+            "loadingProgressBar"
+        );
+
+
+    if (loadingText) {
+
+        loadingText.innerText =
+            teks;
+
+    }
+
+
+    if (loadingPercent) {
+
+        loadingPercent.innerText =
+            persen + "%";
+
+    }
+
+
+    if (loadingBar) {
+
+        loadingBar.style.setProperty(
+            "width",
+            persen + "%",
+            "important"
+        );
+
+        console.log(
+            "Progress:",
+            persen + "%",
+            "Bar:",
+            loadingBar
+        );
+
+    }
+
+}
+
+// ==============================
+// PROGRESS ANIMASI SAAT MENUNGGU
+// ==============================
+
+let progressTimer = null;
+let progressValue = 0;
+
+function startProgressAnimation(
+    mulai = 50,
+    maksimal = 90,
+    kecepatan = 700
+) {
+
+    // hentikan timer sebelumnya
+    stopProgressAnimation();
+
+    progressValue = mulai;
+
+    updateUploadProgress(
+        progressValue,
+        "Mengupload bukti..."
+    );
+
+
+    progressTimer = setInterval(() => {
+
+        /*
+         * Naik perlahan.
+         *
+         * Semakin dekat maksimal,
+         * semakin lambat.
+         */
+
+        if (
+            progressValue < maksimal
+        ) {
+
+            const sisa =
+                maksimal -
+                progressValue;
+
+            const kenaikan =
+                Math.max(
+                    0.5,
+                    sisa * 0.08
+                );
+
+            progressValue +=
+                kenaikan;
+
+
+            updateUploadProgress(
+                progressValue,
+                "Mengupload bukti..."
+            );
+
+        }
+
+    }, kecepatan);
+
+}
+
+
+// ==============================
+// STOP PROGRESS ANIMASI
+// ==============================
+
+function stopProgressAnimation() {
+
+    if (progressTimer) {
+
+        clearInterval(
+            progressTimer
+        );
+
+        progressTimer = null;
+
+    }
+
+}
+
+
+// ==============================
+// HIDE LOADING
+// ==============================
+
+function hideLoading() {
+
+    const loading =
+        document.getElementById(
+            "loadingProses"
+        );
+
+    if (loading) {
+
+        loading.classList.add(
+            "hidden"
+        );
+
+    }
+
+}

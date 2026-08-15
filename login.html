@@ -46,7 +46,25 @@
         <p id="status"></p>
 
         <button id="loginBtn" onclick="login()">Login</button>
-        <button id="registerBtn" onclick="register()">Register</button>
+        <button id="registerBtn" onclick="register()" class="hidden">Register</button>
+
+        <p id="bukaRegister">
+        Belum punya akun ?
+        <a href="#"
+            onclick="bukaRegister()"
+            >
+             Register
+        </a>
+        </p>
+
+        <p class="hidden" id="bukaLogin">
+        Sudah punya akun ?
+        <a href="#"
+            onclick="bukaLogin()"
+            >
+             Silakan login
+        </a>
+        </p>
 
         <p>
         <a href="#"

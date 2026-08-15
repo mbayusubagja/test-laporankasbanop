@@ -37,6 +37,21 @@ function hashPassword(password) {
   return sha256(password);
 }
 
+function bukaRegister() {
+  registerBtn.classList.remove("hidden");
+  loginBtn.classList.add("hidden");
+  document.getElementById("bukaRegister").classList.add("hidden");
+    document.getElementById("bukaLogin").classList.remove("hidden");
+
+}
+
+function bukaLogin() {
+  registerBtn.classList.add("hidden");
+  loginBtn.classList.remove("hidden");
+  document.getElementById("bukaLogin").classList.add("hidden");
+  document.getElementById("bukaRegister").classList.remove("hidden");
+}
+
 // ================================ validasi ==================================
 
 function validasi() {

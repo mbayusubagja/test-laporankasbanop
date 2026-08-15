@@ -21,6 +21,7 @@
   display:inline-block;
   margin-top:10px;
   text-decoration:none;
+  color: #8e8e8c;
 }
 
 #footer{
@@ -158,6 +159,10 @@ height:44px;
   border-radius: 12px;
   box-shadow: 0 2px 10px rgba(0,0,0,0.1);
   text-align: center;
+}
+
+.hidden {
+  display: none;
 }
 
 @media (max-width:376px){
