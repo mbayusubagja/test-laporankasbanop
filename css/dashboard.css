@@ -259,10 +259,47 @@ body {
   transform:translateX(20px);
 }
 
+@media (max-width:350px){
+
+  body {
+    padding: 20px 15px 90px 15px;
+  }
+
+  .appText {
+    font-size: 16px;
+  }
+
+  .rememberText {
+    display: none;
+  }
+
+}
+
 @media (max-width:375px){
 
-  .ringkasanBulan{
-    flex-direction:column;
+  body {
+    padding: 20px 15px 90px 15px;
+  }
+
+  .appText {
+    font-size: 16px;
+  }
+
+  .rememberText {
+    display: none;
+  }
+
+}
+
+@media (max-width:450px){
+
+
+  .appText {
+    font-size: 20px;
+  }
+
+  .rememberText {
+    font-size: 10px;
   }
 
 }
