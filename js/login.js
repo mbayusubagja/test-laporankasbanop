@@ -461,19 +461,16 @@ async function register(){
     );
 
 
-    status(
-      "✅ Register berhasil"
-    );
+        // =========================
+        // Register berhasil
+        // =========================
 
-
-    document.getElementById(
-      "noHp"
-    ).value = "";
-
-
-    document.getElementById(
-      "password"
-    ).value = "";
+        status(
+            data.message ||
+            "Register berhasil, silakan login."
+        );
+        
+        bukaLogin();
 
 
   }catch(err){
